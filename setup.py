@@ -4,11 +4,12 @@ import os
 
 version = '0.50.dev0'
 name = 'slapos.toolbox'
-long_description = open("README.rst").read() + "\n" + \
-    open("CHANGES.txt").read() + "\n"
+long_description = open("README.rst").read() + "\n"
 
 for f in sorted(glob.glob(os.path.join('slapos', 'README.*.rst'))):
   long_description += '\n' + open(f).read() + '\n'
+
+long_description += open("CHANGES.txt").read() + "\n"
 
 # Provide a way to install additional requirements
 additional_install_requires = []
