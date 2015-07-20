@@ -623,11 +623,15 @@ def checkSoftwareFolder(path, config):
 def getProjectTitle(config):
   """Generate the name of the current software Release (for slaprunner UI)"""
   conf = os.path.join(config['etc_dir'], ".project")
+  # instance_name is optional parameter
+  instance_name = config.get('instance_name')
+  if instance_name:
+    instance_name = '%s - ' % instance_name
   if os.path.exists(conf):
     project = open(conf, "r").read().split("/")
     software = project[-2]
-    return '%s (%s)' % (software, '/'.join(project[:-2]))
-  return "No Profile"
+    return '%s%s (%s)' % (instance_name, software, '/'.join(project[:-2]))
+  return "%sNo Profile" % instance_name
 
 
 def getSoftwareReleaseName(config):
