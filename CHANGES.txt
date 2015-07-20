@@ -1,3 +1,8 @@
+0.50 (2015-07-20)
+=================
+
+* slaprunner: Allow to configure the window title through 'instance-name' parameter.
+
 0.49 (2015-07-17)
 =================
 
