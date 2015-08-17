@@ -10,6 +10,8 @@ import sys
 import shutil
 import netifaces
 import random
+import pycurl
+from StringIO import StringIO
 
 botname = socket.gethostname()
 
@@ -40,40 +42,69 @@ def _test_dns(name):
   resolving_time = time.time() - begin
   return ('DNS', name, resolution, resolving_time, status)
 
-def _test_ping(host, timeout=10):
-  proc = subprocess.Popen(('ping', '-c', '4', '-w', str(timeout), host), 
+def _test_ping(host, timeout=10, protocol="4"):
+  if protocol == '4':
+    ping_bin = 'ping'
+    test_title = 'PING'
+  elif protocol == '6':
+    ping_bin = 'ping6'
+    test_title = 'PING6'
+  
+  proc = subprocess.Popen((ping_bin, '-c', '10', '-w', str(timeout), host), 
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
   out, err = proc.communicate()
   packet_loss_line, summary_line = (out.splitlines() or [''])[-2:]
   m = ping_re.match(summary_line)
-  info_list = ('PING', host, '600', 'failed', "Cannot ping host")
-  if ' 0% packet loss' in packet_loss_line:
+  match = re.search('(\d*)% packet loss', packet_loss_line)
+  packet_lost_ratio = match.group(1)
+  
+  info_list = (test_title, host, '600', 'failed', packet_lost_ratio, "Cannot ping host")
+  if packet_lost_ratio != 0:
     if m:
-      info_list = ('PING', host, '200', m.group('avg'),
+      info_list = (test_title, host, '200', m.group('avg'), packet_lost_ratio,
            'min %(min)s max %(max)s avg %(avg)s' % m.groupdict())
+  else:
+    info_list = (test_title, host, '600', 'failed', packet_lost_ratio,
+      "You have package Lost")
 
   return info_list
 
-def _test_url_request(url, request):
-  begin = time.time()
-  try:
-    response = urllib2.urlopen(request)
-    if url != response.url:
-      raise RuntimeError, 'Redirected to %s' % response.url
-    response.read()
-    rendering_time = time.time() - begin
-    info_list = ('GET', url, response.code, rendering_time, "OK")
-  except urllib2.HTTPError, e: # 40x errors
-    e.fp.read()
-    rendering_time = time.time() - begin
-    info_list = ('GET', url, e.code, rendering_time, "HTTPError")
-  except urllib2.URLError, e: # DNS failure
-    rendering_time = time.time() - begin
-    info_list = ('GET', url, '600', rendering_time, "DNS Failure")
-  except RuntimeError, e:
-    info_list = ('GET', url, '600', 'failed')
+def _test_ping6(host, timeout=10):
+  return _test_ping(host, timeout=10, protocol='6')
 
+def _test_url_request(url):
+  begin = time.time()
+  
+  buffer = StringIO()
+  curl = pycurl.Curl()
+  curl.setopt(curl.URL, url)
+  curl.setopt(curl.CONNECTTIMEOUT, 10)
+  curl.setopt(curl.TIMEOUT, 300)
+  curl.setopt(curl.WRITEDATA, buffer)
+  
+  try:
+    curl.perform()
+  except:
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
+  
+  body = buffer.getvalue()
+  
+  rendering_time = "%s/%s/%s/%s/%s" % \
+    (curl.getinfo(curl.NAMELOOKUP_TIME),
+     curl.getinfo(curl.CONNECT_TIME),
+     curl.getinfo(curl.PRETRANSFER_TIME),
+     curl.getinfo(curl.STARTTRANSFER_TIME),
+     curl.getinfo(curl.TOTAL_TIME))
+  
+  response_code = curl.getinfo(pycurl.HTTP_CODE)
+  
+  curl.close()
+
+  info_list = ('GET', url, response_code, rendering_time, "OK")
+  
   return info_list
 
 def is_rotate_log(log_file_path):
@@ -146,6 +177,7 @@ def main():
   name_list = config.get("network_bench", "dns")
   url_list = config.get("network_bench", "url")
   ping_list = config.get("network_bench", "ping")
+  ping6_list = config.get("network_bench", "ping6")
 
   logger = create_logger("info", log_folder)
 
@@ -161,9 +193,13 @@ def main():
   for host in ping_list.split():
     info_list = _test_ping(host)
     logger.info(';'.join(str(x) for x in info_list))
+    
+  for host in ping6_list.split():
+    info_list = _test_ping6(host)
+    logger.info(';'.join(str(x) for x in info_list))
 
   # http
   for url in url_list.split():
-    info_list = _test_url_request(url, urllib2.Request(url))
+    info_list = _test_url_request(url)
     logger.info(';'.join(str(x) for x in info_list))
 

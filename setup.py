@@ -50,6 +50,7 @@ setup(name=name,
         'zodbpack': ['ZODB3'], # needed to play with ZODB
         'agent': ['erp5.util'],
         'flask_auth' : ["Flask-Auth"],
+        'networkbench' : ['pycurl'], 
         'check_web_page_http_cache_hit' : ['pycurl'], # needed for check_web_page_http_cache_hit module
       },
       zip_safe=False, # proxy depends on Flask, which has issues with
