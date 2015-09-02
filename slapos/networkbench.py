@@ -11,6 +11,7 @@ import shutil
 import netifaces
 import random
 import pycurl
+import json
 from StringIO import StringIO
 
 botname = socket.gethostname()
@@ -82,6 +83,10 @@ def _test_url_request(url):
   curl.setopt(curl.CONNECTTIMEOUT, 10)
   curl.setopt(curl.TIMEOUT, 300)
   curl.setopt(curl.WRITEDATA, buffer)
+  curl.setopt(curl.SSL_VERIFYPEER, False)
+  curl.setopt(curl.SSL_VERIFYHOST, False)
+
+  result = "OK"
   
   try:
     curl.perform()
@@ -89,10 +94,11 @@ def _test_url_request(url):
     import traceback
     traceback.print_exc(file=sys.stderr)
     sys.stderr.flush()
+    result = "FAIL"
   
   body = buffer.getvalue()
   
-  rendering_time = "%s/%s/%s/%s/%s" % \
+  rendering_time = "%s;%s;%s;%s;%s" % \
     (curl.getinfo(curl.NAMELOOKUP_TIME),
      curl.getinfo(curl.CONNECT_TIME),
      curl.getinfo(curl.PRETRANSFER_TIME),
@@ -103,9 +109,42 @@ def _test_url_request(url):
   
   curl.close()
 
-  info_list = ('GET', url, response_code, rendering_time, "OK")
+  info_list = ('GET', url, response_code, rendering_time, result)
   
   return info_list
+  
+def download_external_configuration(url):
+  buffer = StringIO()
+  curl = pycurl.Curl()
+  curl.setopt(curl.URL, url)
+  curl.setopt(curl.CONNECTTIMEOUT, 10)
+  curl.setopt(curl.TIMEOUT, 300)
+  curl.setopt(curl.WRITEDATA, buffer)
+  curl.setopt(curl.SSL_VERIFYPEER, False)
+  curl.setopt(curl.SSL_VERIFYHOST, False)
+
+  try:
+    curl.perform()
+  except:
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.flush()
+
+  response_code = curl.getinfo(pycurl.HTTP_CODE)
+  
+  curl.close()
+
+  if response_code == 200:
+    try:
+      return json.loads(buffer.getvalue())
+    except ValueError:
+      print "Unable to parse external configuration, error:"
+      import traceback
+      traceback.print_exc(file=sys.stderr)
+      sys.stderr.flush()
+      print "Ignoring external configuration"
+
+  return {}
 
 def is_rotate_log(log_file_path):
   try:
@@ -154,7 +193,7 @@ def create_logger(name, log_folder):
                stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
     sp.communicate()
 
-  format = "%%(asctime)-16s;%%(levelname)s;%s;%%(message)s" % botname
+  format = "%%(asctime)-16s;%s;%%(message)s" % botname
   handler.setFormatter(logging.Formatter(format))
   new_logger.addHandler(handler)
   return new_logger
@@ -174,32 +213,53 @@ def main():
 
   delay = random.randint(0, 30)
 
-  name_list = config.get("network_bench", "dns")
-  url_list = config.get("network_bench", "url")
-  ping_list = config.get("network_bench", "ping")
-  ping6_list = config.get("network_bench", "ping6")
+  name_list = []
+  url_list = []
+  ping_list = []
+  ping6_list = []
 
-  logger = create_logger("info", log_folder)
+  if config.has_option("network_bench", "dns"):
+    name_list = config.get("network_bench", "dns").split()
 
-  logger.debug('Starting a new test in %s seconds' % delay)
+  if config.has_option("network_bench", "url"):
+    url_list = config.get("network_bench", "url").split()
+
+  if config.has_option("network_bench", "ping"):
+    ping_list = config.get("network_bench", "ping").split()
+
+  if config.has_option("network_bench", "ping6"):
+    ping6_list = config.get("network_bench", "ping6").split()
+  
+
+  if config.has_option("network_bench", "test_distributor_url"):
+    
+    external_configuration_url = config.get("network_bench", "test_distributor_url")
+    external_config_dict = download_external_configuration(external_configuration_url)
+  
+    name_list.extend(external_config_dict.get("dns", []))
+    url_list.extend(external_config_dict.get("url",[]))
+    ping_list.extend(external_config_dict.get("ping", []))
+    ping6_list.extend(external_config_dict.get("ping6", []))
 
   time.sleep(delay)
 
-  for name in name_list.split():
+  dns_logger = create_logger("dns", log_folder)
+  for name in name_list:
     info_list = _test_dns(name)
-    logger.info(';'.join(str(x) for x in info_list))
+    dns_logger.info(';'.join(str(x) for x in info_list))
 
-  # ping
-  for host in ping_list.split():
+  ping_logger = create_logger("ping", log_folder)
+  for host in ping_list:
     info_list = _test_ping(host)
-    logger.info(';'.join(str(x) for x in info_list))
-    
-  for host in ping6_list.split():
+    ping_logger.info(';'.join(str(x) for x in info_list))
+
+
+  ping6_logger = create_logger("ping6", log_folder)
+  for host in ping6_list:
     info_list = _test_ping6(host)
-    logger.info(';'.join(str(x) for x in info_list))
+    ping6_logger.info(';'.join(str(x) for x in info_list))
 
-  # http
-  for url in url_list.split():
+  http_logger = create_logger("http", log_folder)
+  for url in url_list:
     info_list = _test_url_request(url)
-    logger.info(';'.join(str(x) for x in info_list))
-
+    http_logger.info(';'.join(str(x) for x in info_list))
