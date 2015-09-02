@@ -83,6 +83,10 @@ def _test_url_request(url):
   curl.setopt(curl.CONNECTTIMEOUT, 10)
   curl.setopt(curl.TIMEOUT, 300)
   curl.setopt(curl.WRITEDATA, buffer)
+  curl.setopt(curl.SSL_VERIFYPEER, False)
+  curl.setopt(curl.SSL_VERIFYHOST, False)
+
+  result = "OK"
   
   try:
     curl.perform()
@@ -90,10 +94,11 @@ def _test_url_request(url):
     import traceback
     traceback.print_exc(file=sys.stderr)
     sys.stderr.flush()
+    result = "FAIL"
   
   body = buffer.getvalue()
   
-  rendering_time = "%s/%s/%s/%s/%s" % \
+  rendering_time = "%s;%s;%s;%s;%s" % \
     (curl.getinfo(curl.NAMELOOKUP_TIME),
      curl.getinfo(curl.CONNECT_TIME),
      curl.getinfo(curl.PRETRANSFER_TIME),
@@ -104,7 +109,7 @@ def _test_url_request(url):
   
   curl.close()
 
-  info_list = ('GET', url, response_code, rendering_time, "OK")
+  info_list = ('GET', url, response_code, rendering_time, result)
   
   return info_list
   
@@ -188,7 +193,7 @@ def create_logger(name, log_folder):
                stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
     sp.communicate()
 
-  format = "%%(asctime)-16s;%%(levelname)s;%s;%%(message)s" % botname
+  format = "%%(asctime)-16s;%s;%%(message)s" % botname
   handler.setFormatter(logging.Formatter(format))
   new_logger.addHandler(handler)
   return new_logger
