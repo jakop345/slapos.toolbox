@@ -55,7 +55,12 @@ def _test_ping(host, timeout=10, protocol="4"):
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
   out, err = proc.communicate()
-  packet_loss_line, summary_line = (out.splitlines() or [''])[-2:]
+  if 'Network is unreachable' in err:
+    return (test_title, host, '600', 'failed', 100, "Network is unreachable")
+  try:
+    packet_loss_line, summary_line = (out.splitlines() or [''])[-2:]
+  except:
+    return (test_title, host, '600', 'failed', -1, "Fail to parser ping output")
   m = ping_re.match(summary_line)
   match = re.search('(\d*)% packet loss', packet_loss_line)
   packet_lost_ratio = match.group(1)
