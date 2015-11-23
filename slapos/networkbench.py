@@ -20,8 +20,8 @@ botname = socket.gethostname()
 ping_re = re.compile(
     ".*"
     "(?P<min>[\d\.]+)/"
-    "(?P<max>[\d\.]+)/"
     "(?P<avg>[\d\.]+)/"
+    "(?P<max>[\d\.]+)/"
     "(?P<mdev>[\d\.]+) ms"
     )
 
