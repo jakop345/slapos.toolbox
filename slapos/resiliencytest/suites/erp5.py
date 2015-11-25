@@ -66,9 +66,9 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     self.logger.info('Retrieved erp5 url is:\n%s' % url)
     return url
 
-  def _connectToERP5(self, url, data=None):
+  def _connectToERP5(self, url, data=None, password='insecure'):
     auth_handler = urllib2.HTTPBasicAuthHandler()
-    auth_handler.add_password(realm='Zope', uri=url, user='zope', passwd='insecure')
+    auth_handler.add_password(realm='Zope', uri=url, user='zope', passwd=password)
     ssl_context = ssl._create_unverified_context()
     opener_director = urllib2.build_opener(
         auth_handler,
@@ -85,12 +85,12 @@ class ERP5TestSuite(SlaprunnerTestSuite):
       raise NotHttpOkException(result.getcode())
     return result.read()
 
-  def _createRandomERP5Document(self):
+  def _createRandomERP5Document(self, password='insecure'):
     """ Create a document with random content in erp5 site."""
     # XXX currently only sets erp5 site title.
     # XXX could be simplified to /erp5/setTitle?title=slapos
     erp5_site_title = self.slaprunner_user
-    url = "%s/erp5?__ac_name=zope&__ac_password=insecure" % self._getERP5Url()
+    url = "%s/erp5?__ac_name=zope&__ac_password=%s" % (self._getERP5Url(), password)
     form = 'title%%3AUTF-8:string=%s&manage_editProperties%%3Amethod=Save+Changes' % erp5_site_title
     self._connectToERP5(url, form)
     return erp5_site_title
@@ -126,6 +126,9 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     )
 
     time.sleep(15)
+
+    # In case erp5 bootstrap (in erp5-cluster) couldn't connect to zope through HAProxy
+    self._connectToSlaprunner('/startAllPartition')
 
   def generateData(self):
     self.slaprunner_password = ''.join(
@@ -163,6 +166,7 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     )
 
     self._login()
+    time.sleep(10)
 
     self._gitClone()
     self._openSoftwareRelease('erp5')
@@ -172,6 +176,7 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     time.sleep(600)
 
     self._buildSoftwareRelease()
+    self._deployInstance()
     self._deployInstance()
     self._deployInstance()
     self._deployInstance()

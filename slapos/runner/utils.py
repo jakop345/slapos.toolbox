@@ -460,6 +460,13 @@ def svcStopAll(config):
   except:
     pass
 
+def svcStartAll(config):
+  """Start all Instance processes on this computer"""
+  try:
+    return Popen([config['slapos'], 'node', 'supervisorctl', '--cfg', config['configuration_file_path'],
+                  'start', 'all']).communicate()[0]
+  except:
+    pass
 
 def removeInstanceRoot(config):
   """Clean instance directory and stop all its running processes"""

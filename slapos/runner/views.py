@@ -30,7 +30,7 @@ from slapos.runner.utils import (checkSoftwareFolder, configNewSR,
                                  saveSession, saveBuildAndRunParams,
                                  setMiniShellHistory,
                                  stopProxy,
-                                 svcStartStopProcess, svcStopAll, tail,
+                                 svcStartStopProcess, svcStartAll, svcStopAll, tail,
                                  updateInstanceParameter)
 
 from slapos.runner.fileBrowser import FileBrowser
@@ -252,6 +252,9 @@ def stopAllPartition():
   svcStopAll(app.config)
   return redirect(url_for('inspectInstance'))
 
+def startAllPartition():
+  svcStartAll(app.config)
+  return redirect(url_for('inspectInstance'))
 
 def tailProcess(process):
   return render_template('processTail.html',
@@ -790,6 +793,8 @@ app.add_url_rule("/getFileLog", 'getFileLog', getFileLog,
                  methods=['POST'])
 app.add_url_rule('/stopAllPartition', 'stopAllPartition',
                  stopAllPartition, methods=['GET'])
+app.add_url_rule('/startAllPartition', 'startAllPartition',
+                 startAllPartition, methods=['GET'])
 app.add_url_rule('/tailProcess/name/<process>', 'tailProcess',
                  tailProcess, methods=['GET'])
 app.add_url_rule('/startStopProccess/name/<process>/cmd/<action>',
