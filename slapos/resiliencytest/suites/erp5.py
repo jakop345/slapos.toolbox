@@ -44,13 +44,14 @@ class ERP5TestSuite(SlaprunnerTestSuite):
   Run ERP5 inside Slaprunner Resiliency Test.
   Note: requires specific kernel allowing long shebang paths.
   """
+
   def _setERP5InstanceParameter(self):
     """
     Set inside of slaprunner the instance parameter to use to deploy erp5 instance.
     """
     self._connectToSlaprunner(
         resource='saveParameterXml',
-        data='software_type=production&parameter=%3C%3Fxml+version%3D%221.0%22+encoding%3D%22utf-8%22%3F%3E%0A%3Cinstance%3E%0A%3Cparameter+id%3D%22json%22%3E%7B%0A++%22backup-periodicity%22%3A+%22*%2F5+*+*+*+*%22%2C%0A++%22site-id%22%3A+%22erp5%22%2C%0A++%22erp5-ca%22%3A+%7B%0A++++%22country-code%22%3A+%22FR%22%2C%0A++++%22city%22%3A+%22Lille%22%2C%0A++++%22state%22%3A+%22Nord-Pas-de-Calais%22%2C%0A++++%22company%22%3A+%22ViFiB+SARL%22%2C%0A++++%22email%22%3A+%22admin%40vifib.org%22%0A++%7D%2C%0A++%22zeo%22%3A+%7B%0A++++%22Zeo-Server-1%22%3A+%5B%7B%0A++++++%22zodb-name%22%3A+%22main%22%2C%0A++++++%22serialize-path%22%3A+%22%2F%25(site-id)s%2Faccount_module%2F%22%2C%0A++++++%22mount-point%22%3A+%22%2F%22%2C%0A++++++%22zope-cache-size%22%3A+%222000%22%2C%0A++++++%22storage-name%22%3A+%22main%22%2C%0A++++++%22zeo-cache-size%22%3A+%22400MB%22%0A++++%7D%5D%0A++%7D%2C%0A++%22activity%22%3A+%7B%0A++++%22zopecount%22%3A+1%2C%0A++++%22timerservice%22%3A+true%0A++%7D%2C%0A++%22timezone%22%3A+%22Europe%2FParis%22%2C%0A++%22backend%22%3A+%7B%0A++++%22login%22%3A+%7B%0A++++++%22zopecount%22%3A+1%2C%0A++++++%22access-control-string%22%3A+%22all%22%2C%0A++++++%22scheme%22%3A+%5B%22https%22%5D%2C%0A++++++%22maxconn%22%3A+1%2C%0A++++++%22thread-amount%22%3A+1%0A++++%7D%2C%0A++++%22erp5%22%3A+%7B%0A++++++%22zopecount%22%3A+1%2C%0A++++++%22access-control-string%22%3A+%22all%22%2C%0A++++++%22scheme%22%3A+%5B%22https%22%5D%2C%0A++++++%22maxconn%22%3A+1%2C%0A++++++%22thread-amount%22%3A+1%0A++++%7D%0A++%7D%0A%7D%3C%2Fparameter%3E%0A%3Cparameter+id%3D%22mariadb-json%22%3E%7B%22backup-periodicity%22%3A+%22*%2F5+*+*+*+*%22%7D%3C%2Fparameter%3E%0A%3C%2Finstance%3E%0A'
+        data='software_type=create-erp5-site&parameter=%3C%3Fxml+version%3D%221.0%22+encoding%3D%22utf-8%22%3F%3E%0A%3Cinstance%3E%0A%3Cparameter+id%3D%22_%22%3E%7B%22zodb-zeo%22%3A+%7B%22backup-periodicity%22%3A+%22minutely%22%7D%2C+%22mariadb%22%3A+%7B%22backup-periodicity%22%3A+%22minutely%22%7D%7D%3C%2Fparameter%3E%0A%3C%2Finstance%3E%0A'
     )
 
   def _getERP5Url(self):
@@ -60,13 +61,56 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     but connection parameter of what is inside of webrunner.
     """
     data = self._connectToSlaprunner(
-        resource='getConnectionParameter/slappart5'
+        resource='getConnectionParameter/slappart7'
     )
-    url = json.loads(data)['url-erp5']
+    url = json.loads(json.loads(data)['_'])['default-v6']
     self.logger.info('Retrieved erp5 url is:\n%s' % url)
     return url
 
-  def _connectToERP5(self, url, data=None, password='insecure'):
+  def _getERP5Password(self):
+    data = self._connectToSlaprunner(
+        resource='getConnectionParameter/slappart0'
+    )
+    password = json.loads(json.loads(data)['_'])['inituser-password']
+    self.logger.info('Retrieved erp5 password is:\n%s' % password)
+    return password
+
+  def _editHAProxyconfiguration(self):
+    """
+    XXX pure hack.
+    haproxy processes don't support long path for sockets.
+    Edit haproxy configuration file of erp5 to make it compatible with long paths
+    Then restart haproxy.
+    """
+    self.logger.info('Editing HAProxy configuration...')
+
+    result = self._connectToSlaprunner(
+        resource='/getFileContent',
+        data='file=runner_workdir%2Finstance%2Fslappart7%2Fetc%2Fhaproxy.cfg'
+    )
+    file_content = json.loads(result)['result']
+    file_content = file_content.replace('var/run/haproxy.sock', 'ha.sock')
+    self._connectToSlaprunner(
+        resource='/saveFileContent',
+        data='file=runner_workdir%%2Finstance%%2Fslappart7%%2Fetc%%2Fhaproxy.cfg&content=%s' % urllib.quote(file_content)
+    )
+
+    # Restart HAProxy
+    self._connectToSlaprunner(
+        resource='/startStopProccess/name/slappart7:haproxy/cmd/STOPPED'
+    )
+
+    time.sleep(15)
+
+  def _getCreatedERP5Document(self):
+    """ Fetch and return content of ERP5 document created above."""
+    url = "%s/erp5/getTitle" % self._getERP5Url()
+    return self._connectToERP5(url)
+
+
+  def _connectToERP5(self, url, data=None, password=None):
+    if password is None:
+      password = self._getERP5Password()
     auth_handler = urllib2.HTTPBasicAuthHandler()
     auth_handler.add_password(realm='Zope', uri=url, user='zope', passwd=password)
     ssl_context = ssl._create_unverified_context()
@@ -85,20 +129,18 @@ class ERP5TestSuite(SlaprunnerTestSuite):
       raise NotHttpOkException(result.getcode())
     return result.read()
 
-  def _createRandomERP5Document(self, password='insecure'):
+  def _createRandomERP5Document(self, password=None):
     """ Create a document with random content in erp5 site."""
     # XXX currently only sets erp5 site title.
     # XXX could be simplified to /erp5/setTitle?title=slapos
+    if password is None:
+      password = self._getERP5Password()
+
     erp5_site_title = self.slaprunner_user
     url = "%s/erp5?__ac_name=zope&__ac_password=%s" % (self._getERP5Url(), password)
     form = 'title%%3AUTF-8:string=%s&manage_editProperties%%3Amethod=Save+Changes' % erp5_site_title
     self._connectToERP5(url, form)
     return erp5_site_title
-
-  def _getCreatedERP5Document(self):
-    """ Fetch and return content of ERP5 document created above."""
-    url = "%s/erp5/getTitle" % self._getERP5Url()
-    return self._connectToERP5(url)
 
   def _editHAProxyconfiguration(self):
     """
