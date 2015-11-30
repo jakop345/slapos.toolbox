@@ -133,7 +133,19 @@ def getAndUpdateFullRevisionList(node_test_suite, working_directory,
        branch=branch, log=logger.info, process_manager=process_manager,
        working_directory=working_directory,
        url=vcs_repository["url"])
-    updater.checkout()
+
+    retry = 10
+    while retry:
+      try:
+        updater.checkout()
+      except SubprocessError:
+        # Wait a bit and try again
+        time.sleep(30)
+        retry -= 1
+        continue
+      finally:
+        break 
+
     revision = "-".join(updater.getRevision())
     full_revision_list.append('%s=%s' % (repository_id, revision))
   node_test_suite['revision'] = ','.join(full_revision_list)

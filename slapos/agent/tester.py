@@ -46,6 +46,8 @@ def retryOnNetworkFailure(func):
         return func(*args, **kwargs)
       except SAFE_RPC_EXCEPTION_LIST, e:
         print 'Network failure: %s , %s' % (sys.exc_info(), e)
+      except slapos.slap.slap.ConnectionError, e:
+        print 'Network failure: %s , %s' % (sys.exc_info(), e)
 
       print 'Retry method %s in %i seconds' % (func, retry_time)
       time.sleep(retry_time)
