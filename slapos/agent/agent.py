@@ -180,13 +180,14 @@ def main():
 
   logger, log_file = getLogger(log, args.verbose)
 
+  configuration = ConfigParser.SafeConfigParser()
+  configuration.readfp(args.configuration_file)
+
   pidfile = args.pidfile
   if pidfile:
     setRunning(logger=logger, pidfile=pidfile)
   try:
     while True:
-      configuration = ConfigParser.SafeConfigParser()
-      configuration.readfp(args.configuration_file)
 
       section_dict = loadConfiguration(configuration, logger)
 
