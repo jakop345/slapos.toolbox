@@ -252,7 +252,7 @@ def main():
             (test_suite['test_suite_title'], ','.join(full_revision_list)))
           continue
 
-        test_result.watcher_period = 5 #120
+        test_result.watcher_period = 120
         assert test_result is not None
     
         if log_file is not None:
@@ -394,6 +394,8 @@ def main():
             if not test_result.isAlive():
               for _, tester, computer_id in running_test_dict.itervalues():
                 tester.teardown()
+
+      time.sleep(300)    
   finally:
     if pidfile:
         setFinished(pidfile)
