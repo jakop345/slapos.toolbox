@@ -69,6 +69,7 @@ setup(name=name,
           'equeue = slapos.equeue:main',
           'htpasswd = slapos.htpasswd:main',
           'is-local-tcp-port-opened = slapos.promise.is_local_tcp_port_opened:main',
+          'is-process-older-than-dependency-set = slapos.promise.is_process_older_than_dependency_set:main',
           'killpidfromfile = slapos.systool:killpidfromfile', # BBB
           'runResiliencyUnitTestTestNode = slapos.resiliencytest:runUnitTest',
           'runResiliencyScalabilityTestNode = slapos.resiliencytest:runResiliencyTest',
