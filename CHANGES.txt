@@ -1,3 +1,19 @@
+0.53 (2015-11-26)
+=================
+
+* networkbench: Minor fixes 
+
+0.52 (2015-09-02)
+=================
+
+* testagent:  Fully reimplementation
+* networkbench: Accept external configurations and split file logs
+
+0.51 (2015-08-17)
+=================
+
+* networkbench:  Include ping6 and TTFB support
+
 0.50 (2015-07-20)
 =================
 
