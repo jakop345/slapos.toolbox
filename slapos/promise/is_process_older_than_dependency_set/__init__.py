@@ -11,6 +11,7 @@ process.
 import sys
 import os
 import errno
+import argparse
 
 import psutil
 
@@ -31,19 +32,29 @@ def moduleIsModifiedSince(top, since, followlinks=False):
         return True
   return False
 
-def isProcessOlderThanDependencySet(pid, python_path_list):
-  start_time = psutil.Process(pid).create_time()
-  return any(moduleIsModifiedSince(product_path, start_time) for product_path in python_path_list)
+def isProcessOlderThanDependencySet(pid, python_path_list, kill=False):
+  process = psutil.Process(pid)
+  start_time = process.create_time()
+  if any(moduleIsModifiedSince(product_path, start_time) for product_path in python_path_list):
+    if kill:
+      process.terminate()
+    return True
+  return False
 
-def isProcessFromPidFileOlderThanDependencySet(pid_file_path, python_path_list):
+def isProcessFromPidFileOlderThanDependencySet(pid_file_path, python_path_list, kill=False):
   with open(pid_file_path, "r") as f:
     pid = int(f.readline())
-  return isProcessOlderThanDependencySet(pid, python_path_list)
+  return isProcessOlderThanDependencySet(pid, python_path_list, kill=kill)
 
 def main():
-  pid_file_path, additional_python_path = sys.argv[1], sys.argv[2:] if len(sys.argv) > 2 else []
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-k", "--kill", action="store_true")
+  parser.add_argument("pid_file_path", metavar="PID_FILE")
+  parser.add_argument("python_path_list", nargs="*", metavar="ADDITIONAL_PYTHON_PATH", default=[])
+  args = parser.parse_args()
+
   try:
-    if isProcessFromPidFileOlderThanDependencySet(pid_file_path, sys.path + additional_python_path):
+    if isProcessFromPidFileOlderThanDependencySet(args.pid_file_path, sys.path + args.python_path_list, kill=args.kill):
       return 1
     return 0
   except (OSError, IOError) as err:
