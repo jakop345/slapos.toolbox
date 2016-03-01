@@ -1,3 +1,10 @@
+0.55 (2016-03-01)
+=================
+
+* Switch to mysqlclient, that is a maintained fork of MySQL-python.
+* Add an option in is-process-older-than-dependency-set to kill the
+  process if older than dependency set.
+
 0.54 (2016-02-25)
 =================
 
