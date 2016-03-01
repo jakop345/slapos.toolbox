@@ -46,7 +46,7 @@ setup(name=name,
         'netifaces',
       ] + additional_install_requires,
       extras_require = {
-        'lampconfigure':  ["mysql-python"], #needed for MySQL Database access
+        'lampconfigure':  ["mysqlclient"], #needed for MySQL Database access
         'zodbpack': ['ZODB3'], # needed to play with ZODB
         'agent': ['erp5.util'],
         'flask_auth' : ["Flask-Auth"],
