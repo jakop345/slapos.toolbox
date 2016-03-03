@@ -11,6 +11,8 @@ import tempfile
 
 import slapos.slap
 
+from slapos.slap.slap import ConnectionError
+
 from slapos.grid.utils import setRunning, setFinished
 
 from erp5.util.taskdistribution import TaskDistributor, TaskDistributionTool
@@ -190,7 +192,7 @@ def main():
     while True:
 
       section_dict = loadConfiguration(configuration, logger)
-
+ 
       agent_parameter_dict = dict(configuration.items('agent'))
 
       task_distributor = TaskDistributor(agent_parameter_dict['report_url'])
@@ -279,8 +281,22 @@ def main():
     
         assert master_url.startswith('https:')
         slap = slapos.slap.slap()
-        slap.initializeConnection(
-          master_url, key_file, cert_file)
+        retry = 0
+        while True:
+          if retry > 100:
+             break
+          # wait until _hateoas_navigator is loaded.
+          slap.initializeConnection(
+            master_url, key_file, cert_file, timeout=120)
+
+          if getattr(slap, '_hateoas_navigator', None) is None:
+             logger.info("Fail to load _hateoas_navigator waiting a bit and retry.")
+             time.sleep(30)
+          else:
+             break
+
+        if getattr(slap, '_hateoas_navigator', None) is None:
+          raise ValueError("Fail to load _hateoas_navigator")
     
         supply = slap.registerSupply()
         order = slap.registerOpenOrder()
@@ -357,6 +373,10 @@ def main():
             logger.info('Checking %s: %r...', section, tester)
             try:
               deadline = tester.tic(now)
+            except ConnectionError:
+              logger.exception('Test execution ConnectionError for  %s' % (section))
+              deadline = next_deadline
+
             except Exception:
               logger.exception('Test execution fail for  %s' % (section))
               test_line.stop(test_count=1, error_count=1, failure_count=0,

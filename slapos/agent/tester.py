@@ -9,6 +9,10 @@ from uritemplate import expand
 import slapos.slap
 from slapos.slap import SoftwareProductCollection
 
+from slapos.slap.slap import ConnectionError
+from requests.exceptions import HTTPError
+
+
 from erp5.util.taskdistribution import SAFE_RPC_EXCEPTION_LIST
 
 SOFTWARE_PRODUCT_NAMESPACE = "product."
@@ -36,6 +40,8 @@ TESTER_STATE_INSTANCE_UNINSTALLED = "TESTER_STATE_INSTANCE_UNINSTALLED"
 class TestTimeout(Exception):
   pass
 
+
+
 # Simple decorator to prevent raise due small
 # network failures.
 def retryOnNetworkFailure(func):
@@ -46,7 +52,11 @@ def retryOnNetworkFailure(func):
         return func(*args, **kwargs)
       except SAFE_RPC_EXCEPTION_LIST, e:
         print 'Network failure: %s , %s' % (sys.exc_info(), e)
-      except slapos.slap.slap.ConnectionError, e:
+      except HTTPError, e:
+        print 'Network failure: %s , %s' % (sys.exc_info(), e)
+      except ConnectionError, e:
+        print 'Network failure: %s , %s' % (sys.exc_info(), e)
+      except slapos.slap.ConnectionError, e:
         print 'Network failure: %s , %s' % (sys.exc_info(), e)
 
       print 'Retry method %s in %i seconds' % (func, retry_time)
@@ -101,7 +111,7 @@ class SlapOSMasterCommunicator(object):
           state=state,
           **self.request_kw)
 
-
+  @retryOnNetworkFailure
   def _hateoas_getComputer(self, reference):
 
     root_document = self.hateoas_navigator.getRootDocument()
@@ -126,6 +136,7 @@ class SlapOSMasterCommunicator(object):
     return json.loads(self.hateoas_navigator.GET(getter_url))
     
  
+  @retryOnNetworkFailure
   def getSoftwareInstallationList(self):
     # XXX Move me to slap.py API 
 
@@ -143,6 +154,7 @@ class SlapOSMasterCommunicator(object):
     return json.loads(result)['_links']['content']
 
 
+  @retryOnNetworkFailure
   def getSoftwareInstallationNews(self):
     for si in self.getSoftwareInstallationList():
       if si["title"] == self.url:
@@ -164,10 +176,12 @@ class SlapOSMasterCommunicator(object):
       return json.loads(result)['news'][0]["text"]
     return ""
 
+  @retryOnNetworkFailure
   def getInstanceUrlList(self):
 
     if self.hosting_subscription_url is None:
-      for hs in self.hateoas_navigator._hateoas_getHostingSubscriptionDict():
+      hosting_subscription_dict = self.hateoas_navigator._hateoas_getHostingSubscriptionDict()
+      for hs in hosting_subscription_dict:
         if hs['title'] == self.name:
           self.hosting_subscription_url = hs['href'] 
           break 
@@ -176,8 +190,9 @@ class SlapOSMasterCommunicator(object):
       return None
 
     return self.hateoas_navigator.getHateoasInstanceList(
-      self.hosting_subscription_url)
+            self.hosting_subscription_url)
 
+  @retryOnNetworkFailure
   def getNewsFromInstance(self, url):
 
     result = self.hateoas_navigator.GET(url)
@@ -191,11 +206,13 @@ class SlapOSMasterCommunicator(object):
     result = self.hateoas_navigator.GET(object_link)
     return json.loads(result)['news']
 
+  @retryOnNetworkFailure
   def getInformationFromInstance(self, url):
 
     result = self.hateoas_navigator.GET(url)
     result = json.loads(result)
     if result['_links'].get('action_object_slap', None) is None:
+      print result['links']
       return None
 
     object_link = self.hateoas_navigator.hateoasGetLinkFromLinks(
@@ -339,6 +356,7 @@ class SoftwareReleaseTester(SlapOSMasterCommunicator):
 
     return SOFTWARE_STATE_UNKNOWN 
 
+  @retryOnNetworkFailure
   def getRSSEntryFromMonitoring(self, base_url):
     if base_url is None:
       return {}
@@ -353,6 +371,7 @@ class SoftwareReleaseTester(SlapOSMasterCommunicator):
         
     return {}
 
+  @retryOnNetworkFailure
   def _getInstanceState(self):
     latest_state = self.latest_state
     self._logger.debug('latest_state = %r', latest_state)
@@ -446,6 +465,7 @@ class SoftwareReleaseTester(SlapOSMasterCommunicator):
     if stopped:
       return INSTANCE_STATE_STOPPED
 
+  @retryOnNetworkFailure
   def teardown(self):
     """
     Interrupt a running test sequence, putting it in idle state.
