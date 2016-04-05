@@ -181,7 +181,7 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     try:
       self._connectToSlaprunner(
           resource='cloneRepository',
-          data='repo=http://git.erp5.org/repos/slapos.git&name=workspace/slapos&email=slapos@slapos.org&user=slapos'
+          data='repo=https://lab.nexedi.com/nexedi/slapos.git&name=workspace/slapos&email=slapos@slapos.org&user=slapos'
       )
     except (NotHttpOkException, urllib2.HTTPError):
       # cloning can be very long.
