@@ -177,7 +177,7 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     self.logger.info('Instance has been deployed.')
 
   def _gitClone(self):
-    self.logger.debug('Doing git clone of git.erp5.org/repos/slapos.git...')
+    self.logger.debug('Doing git clone of https://lab.nexedi.com/nexedi/slapos.git..')
     try:
       self._connectToSlaprunner(
           resource='cloneRepository',
