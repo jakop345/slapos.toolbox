@@ -110,7 +110,7 @@ class SlaprunnerTestCase(unittest.TestCase):
     views.app.config['TESTING'] = True
     self.users = ["slapuser", "slappwd", "slaprunner@nexedi.com", "SlapOS web runner"]
     self.updateUser = ["newslapuser", "newslappwd", "slaprunner@nexedi.com", "SlapOS web runner"]
-    self.repo = 'http://git.erp5.org/repos/slapos.git'
+    self.repo = 'https://lab.nexedi.com/nexedi/slapos.git'
     self.software = "workspace/slapos/software/"  # relative directory fo SR
     self.project = 'slapos'  # Default project name
     self.template = 'template.cfg'
