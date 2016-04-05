@@ -377,7 +377,7 @@ class SlaprunnerTestCase(unittest.TestCase):
     softwareRelease = "[buildout]\n\nparts =\n  test-application\n"
     softwareRelease += "#Test download git web repos éè@: utf-8 caracters\n"
     softwareRelease += "[test-application]\nrecipe = hexagonit.recipe.download\n"
-    softwareRelease += "url = http://git.erp5.org/gitweb/slapos.git\n"
+    softwareRelease += "url = https://lab.nexedi.com/nexedi/slapos.git\n"
     softwareRelease += "filename = slapos.git\n"
     softwareRelease += "download-only = true\n"
     response = loadJson(self.app.post('/saveFileContent',
