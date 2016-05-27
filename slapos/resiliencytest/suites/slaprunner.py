@@ -37,6 +37,7 @@ import ssl
 import string
 import time
 import urllib2
+import urllib
 
 class NotHttpOkException(Exception):
   pass
@@ -198,19 +199,18 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
 
   def _getRcode(self):
     #XXX-Nicolas: hardcoded url. Best way right now to automate the tests...
-    monitoring_password = "passwordtochange"
-    monitor_url = self.monitor_url + "?script=zero-knowledge%2Fsettings.cgi"
-    result = self._opener_director.open(monitor_url,
-                                       "password=" + monitoring_password + ";password_2=" + monitoring_password)
+    monitoring_password = "insecure"
+    monitor_url = self.monitor_url + "/private/monitor.global.json"
+    monitor_url = monitor_url.replace('https://', 'https://admin:%s@' % monitoring_password)
+    result = urllib.urlopen(monitor_url)
 
     if result.getcode() is not 200:
       raise NotHttpOkException(result.getcode())
 
-    page = result.read().strip()
-    html = etree.HTML(page)
-
-    input = html.xpath("//input[@name='recovery-code']")
-    return input[0].get('value')
+    monitor_json = json.loads(result.read())
+    for parameter in monitor_json['parameters']:
+      if parameter['title'] == 'recovery-code':
+        return parameter['value']
 
   def generateData(self):
     self.slaprunner_password = ''.join(
@@ -233,7 +233,7 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     parameter_dict = self._getPartitionParameterDict()
     self.slaprunner_backend_url = parameter_dict['backend_url']
     self.logger.info('backend_url is %s.' % self.slaprunner_backend_url)
-    self.monitor_url = parameter_dict['monitor_backend_url']
+    self.monitor_url = parameter_dict['monitor-base-url']
     slaprunner_recovery_code = self._getRcode()
 
     self.logger.debug('Creating the slaprunner account...')
