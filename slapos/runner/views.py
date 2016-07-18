@@ -15,27 +15,29 @@ from flask import (Flask, request, redirect, url_for, render_template,
                    g, flash, jsonify, session, abort, send_file)
 
 import slapos
-from slapos.runner.utils import (checkSoftwareFolder, configNewSR,
+from slapos.runner.utils import (checkSoftwareFolder, configNewSR, checkUserCredential,
                                  createNewUser, getBuildAndRunParams,
                                  getProfilePath, getSlapgridResult,
                                  listFolder, getBuildAndRunParams,
-                                 getProjectTitle, getRcode, getSession,
+                                 getProjectTitle, getRcode, updateUserCredential,
                                  getSlapStatus, getSvcStatus,
-                                 getSvcTailProcess, isInstanceRunning,
+                                 getSvcTailProcess, getUsernameList, isInstanceRunning,
                                  isSoftwareRunning, isSoftwareReleaseReady, isText,
                                  loadSoftwareRList, md5sum, newSoftware,
                                  readFileFrom, readParameters, realpath,
                                  removeInstanceRoot, removeProxyDb,
                                  removeSoftwareByName, runSlapgridUntilSuccess,
-                                 saveSession, saveBuildAndRunParams,
+                                 saveBuildAndRunParams,
                                  setMiniShellHistory,
                                  stopProxy,
                                  svcStartStopProcess, svcStartAll, svcStopAll, tail,
                                  updateInstanceParameter)
 
+from git import GitCommandError
 from slapos.runner.fileBrowser import FileBrowser
 from slapos.runner.gittools import (cloneRepo, gitStatus, switchBranch,
-                                    addBranch, getDiff, gitCommit, gitPush, gitPull)
+                                    addBranch, getDiff, gitCommit, gitPush,
+                                    gitPull, updateGitConfig, safeResult)
 
 
 app = Flask(__name__)
@@ -56,7 +58,7 @@ def before_request():
   if request.path.startswith('/static') \
     or request.path == '/isSRReady':
     return
-
+  """
   account = getSession(app.config)
   if account:
     session['title'] = getProjectTitle(app.config)
@@ -64,7 +66,8 @@ def before_request():
     session['title'] = "No account is defined"
     if request.path != "/setAccount" and request.path != "/configAccount":
       return redirect(url_for('setAccount'))
-
+  """
+  session['title'] = getProjectTitle(app.config)
   g.instance_monitoring_url =  app.config['instance_monitoring_url']
 
 # general views
@@ -84,17 +87,25 @@ def login():
 
 @app.route("/setAccount")
 def setAccount():
-  account = getSession(app.config)
+  """account = getSession(app.config)
   if not account:
     return render_template('account.html')
-  return redirect(url_for('login'))
+  return redirect(url_for('login'))"""
 
 
 def myAccount():
-  account = getSession(app.config)
-  return render_template('account.html', username=account[0],
-          email=account[2], name=account[3].decode('utf-8'),
-          params=getBuildAndRunParams(app.config))
+  # account = getSession(app.config)
+  git_user_path = os.path.join(app.config['etc_dir'], '.git_user')
+  name = email = ""
+  if os.path.exists(git_user_path):
+    with open(git_user_path, 'r') as gfile:
+      name, email = gfile.read().split(';')
+  return render_template(
+    'account.html',
+    username_list=getUsernameList(app.config),
+    email=email,
+    name=name.decode('utf-8'),
+    params=getBuildAndRunParams(app.config))
 
 
 def getSlapgridParameters():
@@ -103,11 +114,16 @@ def getSlapgridParameters():
 
 def manageRepository():
   public_key = open(app.config['public_key']).read()
-  account = getSession(app.config)
+  account = [] #getSession(app.config)
+  git_user_path = os.path.join(app.config['etc_dir'], '.git_user')
+  name = email = ""
+  if os.path.exists(git_user_path):
+    with open(git_user_path, 'r') as gfile:
+      name, email = gfile.read().split(';')
   return render_template('manageRepository.html', workDir='workspace',
             project=listFolder(app.config, 'workspace'),
-            public_key=public_key, name=account[3].decode('utf-8'),
-            email=account[2])
+            public_key=public_key, name=name.decode('utf-8'),
+            email=email)
 
 
 @app.route("/doLogin", methods=['POST'])
@@ -273,13 +289,13 @@ def openProject(method):
 
 def cloneRepository():
   path = realpath(app.config, request.form['name'], False)
-  data = {
-    'repo': request.form['repo'],
-    'user': request.form['user'],
-    'email': request.form['email'],
-    'path': path
-  }
-  return cloneRepo(data)
+  if not path:
+    return jsonify(code=0, result="Can not access folder: Permission Denied")
+  try:
+    cloneRepo(request.form['repo'], path, request.form['user'], request.form['email'])
+    return jsonify(code=1, result="")
+  except GitCommandError, e:
+    return jsonify(code=0, result=safeResult(str(e)))
 
 
 def listDirectory():
@@ -306,7 +322,11 @@ def setCurrentProject():
 def getProjectStatus():
   path = realpath(app.config, request.form['project'])
   if path:
-    return gitStatus(path)
+    try:
+      result, branch, isdirty = gitStatus(path)
+      return jsonify(code=1, result=result, branch=branch, dirty=isdirty)
+    except GitCommandError, e:
+      return jsonify(code=0, result=safeResult(str(e)))
   else:
     return jsonify(code=0, result="Can not read folder: Permission Denied")
 
@@ -392,7 +412,14 @@ def saveFileContent():
 def changeBranch():
   path = realpath(app.config, request.form['project'])
   if path:
-    return switchBranch(path, request.form['name'])
+    try:
+      if switchBranch(path, request.form['name']):
+        return jsonify(code=1, result="")
+      else:
+        json = "This is already your active branch for this project"
+        return jsonify(code=1, result=json)
+    except GitCommandError, e:
+      return jsonify(code=0, result=safeResult(str(e)))
   else:
     return jsonify(code=0, result="Can not read folder: Permission Denied")
 
@@ -400,10 +427,17 @@ def changeBranch():
 def newBranch():
   path = realpath(app.config, request.form['project'])
   if path:
-    if request.form['create'] == '1':
-      return addBranch(path, request.form['name'])
-    else:
-      return addBranch(path, request.form['name'], True)
+    try:
+      if request.form['create'] == '1':
+        result = addBranch(path, request.form['name'])
+      else:
+        result =  addBranch(path, request.form['name'], True)
+      if result:
+        return jsonify(code=1, result="")
+      else:
+        return jsonify(code=0, result="Failed to checkout to branch %s.")
+    except GitCommandError, e:
+      return jsonify(code=0, result=safeResult(str(e)))
   else:
     return jsonify(code=0, result="Can not read folder: Permission Denied")
 
@@ -591,28 +625,34 @@ def updateBuildAndRunConfig():
 
 #update user account data
 def updateAccount():
-  code = request.form['rcode'].strip()
-  recovery_code = getRcode(app.config)
-  if code != recovery_code:
-    return jsonify(code=0, result="Your password recovery code is not valid!")
 
-  account = [
-    request.form['username'].strip(),
-    request.form['password'].strip(),
-    request.form['email'].strip(),
-    request.form['name'].strip()
-  ]
-  result = saveSession(app.config, account)
-  if type(result) == type(""):
-    return jsonify(code=0, result=result)
-  else:
-    return jsonify(code=1, result="")
+  username = request.form['username'].strip()
+  password = request.form['password'].strip()
+  new_password = request.form['new_password'].strip()
+  email = request.form['email'].strip()
+  name = request.form['name'].strip()
+
+  if username and password and new_password:
+    if not checkUserCredential(app.config, username, password):
+      return jsonify(code=0, result="Username and password doesn't match for '%s'" % username)
+
+    result = updateUserCredential(app.config, username, new_password)
+    if not result:
+      return jsonify(code=0, result="Failed to update Credentials!")
+
+  try:
+    updateGitConfig(app.config['default_repository_path'], name, email)
+  except GitCommandError, e:
+    return jsonify(code=0, result=str(e))
+  with open(os.path.join(app.config['etc_dir'], '.git_user'), 'w') as gfile:
+    gfile.write('%s;%s' % (name, email))
+  return jsonify(code=1, result="")
 
 
 #update user account data
 @app.route("/configAccount", methods=['POST'])
 def configAccount():
-  last_account = getSession(app.config)
+  """last_account = getSession(app.config)
   if last_account:
     return jsonify(code=0,
                    result="Unable to respond to your request, permission denied.")
@@ -630,13 +670,9 @@ def configAccount():
   if type(result) == type(""):
     return jsonify(code=0, result=result)
   else:
-    return jsonify(code=1, result="")
+    return jsonify(code=1, result="")"""
 
 def addUser():
-  code = request.form['rcode'].strip()
-  recovery_code = getRcode(app.config)
-  if code != recovery_code:
-    return jsonify(code=0, result="Your password recovery code is not valid!")
   if createNewUser(app.config, request.form['username'],
                    request.form['password']):
     return jsonify(code=1, result="New user succesfully saved")

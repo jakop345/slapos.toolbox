@@ -43,6 +43,7 @@ setup(name=name,
         'slapos.core', # as it provides library for slap
         'xml_marshaller', # needed to dump information
         'GitPython', #needed for git manipulation into slaprunner
+        'passlib',
         'netifaces',
       ] + additional_install_requires,
       extras_require = {

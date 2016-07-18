@@ -83,45 +83,32 @@
         Your repository folder is empty. <a id="switchtoclone">Click here</a> to create a new one!
       </h2>
       <div id="repoContent" style="{% if not project %}display:none{% endif %}">
-      <label for='project'>Current Repository: </label>
-      <select id="project" name="project">
-        {% for folder in project%}
-      	<option value="{{folder}}">{{folder}}</option>
-      	{% endfor %}
-      </select>
-      <a id="switchtoclone" class="lshare">&nbsp;New repository&nbsp;</a>
-      <br/><br/>
-      <div id="contentInfo">
-      	<div id="status" style="margin-bottom:20px;">
-      		<h2>Please select one project...</h2>
-      	</div>
-      	<div id="branchlist" style="margin-bottom:20px;">
-      	<h2>Your Repository Branches</h2>
-      	<div style="margin-left:15px;">
-      	<label for='activebranch'>Select your active Branch: </label>
-      	<select name="activebranch" id="activebranch">
-      	</select>
-      	&nbsp;&nbsp;<label for='branchname'>Branch Name: </label>
-      	<input type="text" name="branchname" id="branchname" size='22' value="Enter the branch name..." />
-      	<input type="submit" name="addbranch" id ="addbranch" value="Add" class="button" title='add new branch: git checkout -b branch'/>
-      	<input type="submit" name="docheckout" id ="docheckout" value="Checkout" class="button" title='add existing branch: git checkout branch'/>
-      	<br/>
-      	<!--<label for='pullbranch'>Update your local repository: </label>-->
-      	<!--<input type="submit" name="pullbranch" id ="pullbranch" value="Pull" class="button"/>-->
-      	<!--<img class="waitting" id="pullimgwaitting" src="{{ url_for('static', filename='images/waiting.gif') }}" alt="" />-->
-      	</div>
-      	</div>
-      	<div id="commit" style="margin-bottom:20px;">
-      	<h2>Commit All your changes (On active branch)</h2>
-      	<div style="margin-left:15px;">
-      	<label for='commitmsg'>Commit message: </label>
-      	<input type="text" name="commitmsg" id="commitmsg" size='40' value="Enter message..." />
-      	<input type="submit" name="commit" id ="commitbutton" value="Commit" class="button"/>
-      	<img class="waitting" id="imgwaitting" src="{{ url_for('static', filename='images/waiting.gif') }}" alt="" />
-      	</div>
-      	</div>
-      	<br/>
-      </div>
+        <label for='project'>Current Repository: </label>
+        <select id="project" name="project">
+          {% for folder in project%}
+        	<option value="{{folder}}">{{folder}}</option>
+        	{% endfor %}
+        </select>
+        <a id="switchtoclone" class="lshare">&nbsp;New repository&nbsp;</a>
+        <br/><br/>
+        <div id="contentInfo">
+        	<div id="status" style="margin-bottom:20px;">
+        		<h2>Please select one project...</h2>
+        	</div>
+        	<div id="branchlist" style="margin-bottom:20px;">
+        	<h2>Your Repository Branches</h2>
+        	<div style="margin-left:15px;">
+        	<label for='activebranch'>Select your active Branch: </label>
+        	<select name="activebranch" id="activebranch">
+        	</select>
+        	&nbsp;&nbsp;<label for='branchname'>Branch Name: </label>
+        	<input type="text" name="branchname" id="branchname" size='22' value="Enter the branch name..." />
+        	<input type="submit" name="addbranch" id ="addbranch" value="Add" class="button" title='add new branch: git checkout -b branch'/>
+        	<input type="submit" name="docheckout" id ="docheckout" value="Checkout" class="button" title='add existing branch: git checkout branch'/>
+        	<br/>
+        	</div>
+        	</div>
+        </div>
       </div>
       </form>
     </div>

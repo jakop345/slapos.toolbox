@@ -29,8 +29,8 @@ $(document).ready(function () {
     function gitStatus() {
         var project = $("#project").val(),
             urldata = $("input#workdir").val() + "/" + project;
+
         $("#status").empty();
-	$("#commit").hide();
         $("#flash").empty();
         if (project === "") {
             $("#status").append("<h2>Please select one project...</h2><br/><br/>");
@@ -55,11 +55,11 @@ $(document).ready(function () {
                     //alert(message);
                     $("#status").append("<p>" + message + "</p>");
                     if (data.dirty) {
-                        $("#commit").show();
-                        $("#status").append("<br/><h2>Display Diff for current Project</h2>");
-                        $("#status").append("<p style='font-size:15px;'>You have changes in your project." +
+                        $("#status").append(
+                            "<br/><p style='font-size:15px;color: #D62B2B;padding: 0;'" +
+                            ">You have changes in your project." +
                             " <a href='#' id='viewdiff'"
-                            + ">Watch the diff file</a></p>");
+                            + ">Watch the diff</a></p>");
                     }
                     $("#viewdiff").click(function () {
                       viewDiff();
@@ -89,7 +89,7 @@ $(document).ready(function () {
         success: function (data) {
           if (data.code === 1) {
             $("#inline_content").empty();
-        		$("#inline_content").append('<div class="main_content"><pre id="editorViewer"></pre></div>');
+            $("#inline_content").append('<div class="main_content"><pre id="editorViewer"></pre></div>');
             viewer = ace.edit("editorViewer");
             viewer.setTheme("ace/theme/crimson_editor");
 
@@ -98,10 +98,10 @@ $(document).ready(function () {
             viewer.getSession().setUseSoftTabs(true);
             viewer.renderer.setHScrollBarAlwaysVisible(false);
             viewer.setReadOnly(true);
-      			$("#inlineViewer").colorbox({inline:true, width: "847px", onComplete:function(){
-      				viewer.getSession().setValue(data.result);
-      			}, title: 'Git diff for project ' + project});
-  		      $("#inlineViewer").click();
+            $("#inlineViewer").colorbox({inline:true, width: "847px", onComplete:function(){
+                    viewer.getSession().setValue(data.result);
+                }, title: 'Git diff for project ' + project});
+            $("#inlineViewer").click();
             send = false;
           } else {
             $("#error").Popup(data.result, {type: 'error'});

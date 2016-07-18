@@ -11,79 +11,68 @@ from git import Repo
 from flask import jsonify
 
 
-def cloneRepo(data):
+def cloneRepo(url, workDir, user="", email=""):
   """Clone a repository
   Args:
-    data: a dictionary of parameters to use:
-      data['path'] is the path of the new project
-      data['repo'] is the url of the repository to be cloned
-      data['email'] is the user's email
-      data['user'] is the name of the user
-  Returns:
-    a jsonify data"""
-  workDir = data['path']
+    workDir is the path of the new project
+    url is the url of the repository to be cloned
+    email is the user's email
+    user is the name of the user"""
+
   if not workDir:
     return jsonify(code=0,
                    result="Can not create project folder.")
-  code = 0
-  json = ""
-  try:
-    if os.path.exists(workDir) and len(os.listdir(workDir)) < 2:
-      shutil.rmtree(workDir)  # delete useless files
-    repo = Repo.clone_from(data["repo"], workDir)
-    config_writer = repo.config_writer()
-    config_writer.add_section("user")
-    if data["user"] != "":
-      config_writer.set_value("user", "name", data["user"].encode("utf-8"))
-    if data["email"] != "":
-      config_writer.set_value("user", "email", data["email"])
-    code = 1
-  except Exception as e:
-    json = safeResult(str(e))
-  return jsonify(code=code, result=json)
 
+  if os.path.exists(workDir) and len(os.listdir(workDir)) < 2:
+    shutil.rmtree(workDir)  # delete useless files
+  repo = Repo.clone_from(url, workDir)
+  config_writer = repo.config_writer()
+  config_writer.add_section("user")
+  if user != "":
+    config_writer.set_value("user", "name", user.encode("utf-8"))
+  if email != "":
+    config_writer.set_value("user", "email", email)
+
+def updateGitConfig(repository, user, email):
+  if not os.path.exists(repository):
+    return
+  repo = Repo(repository)
+  config_writer = repo.config_writer()
+  if user != "":
+    config_writer.set_value("user", "name", user.encode("utf-8"))
+  if email != "":
+    config_writer.set_value("user", "email", email)
+  config_writer.release()
 
 def gitStatus(project):
   """Run git status and return status of specified project folder
   Args:
     project: path of the projet to get status
   Returns:
-    a parsed string that contains the result of git status"""
-  code = 0
-  json = ""
-  try:
-    repo = Repo(project)
-    git = repo.git
-    json = git.status().replace('#', '')
-    branch = git.branch().replace(' ', '').split('\n')
-    isdirty = repo.is_dirty(untracked_files=True)
-    code = 1
-  except Exception as e:
-    json = safeResult(str(e))
-  return jsonify(code=code, result=json, branch=branch, dirty=isdirty)
+    a list with (result of git status, current branch, isdirty)"""
+
+  repo = Repo(project)
+  git = repo.git
+  result = git.status().replace('#', '')
+  branch = git.branch().replace(' ', '').split('\n')
+  isdirty = repo.is_dirty(untracked_files=True)
+  return (result, branch, isdirty)
 
 
-def switchBranch(project, name):
+def switchBranch(project, branch):
   """Switch a git branch
   Args:
     project: directory of the local git repository
-    name: switch from current branch to `name` branch
-  Returns:
-    a jsonify data"""
-  code = 0
-  json = ""
-  try:
-    repo = Repo(project)
-    current_branch = repo.active_branch.name
-    if name == current_branch:
-      json = "This is already your active branch for this project"
-    else:
-      git = repo.git
-      git.checkout(name)
-      code = 1
-  except Exception as e:
-    json = safeResult(str(e))
-  return jsonify(code=code, result=json)
+    name: switch from current branch to `name` branch"""
+
+  repo = Repo(project)
+  current_branch = repo.active_branch.name
+  if branch == current_branch:
+    return False
+  else:
+    git = repo.git
+    git.checkout(branch)
+    return True
 
 
 def addBranch(project, name, onlyCheckout=False):
@@ -93,20 +82,17 @@ def addBranch(project, name, onlyCheckout=False):
     name: name of the new branch
     onlyCheckout: if True then the branch `name` is created before checkout
   Returns:
-    a jsonify data"""
-  code = 0
-  json = ""
-  try:
-    repo = Repo(project)
-    git = repo.git
-    if not onlyCheckout:
-      git.checkout('-b', name)
-    else:
-      git.checkout(name)
-    code = 1
-  except Exception as e:
-    json = safeResult(str(e))
-  return jsonify(code=code, result=json)
+    True or False"""
+  
+  if not os.path.exists(project):
+    return False
+  repo = Repo(project)
+  git = repo.git
+  if not onlyCheckout:
+    git.checkout('-b', name)
+  else:
+    git.checkout(name)
+  return True
 
 
 def getDiff(project):

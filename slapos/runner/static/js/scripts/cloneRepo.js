@@ -33,7 +33,7 @@ $(document).ready(function () {
           $("#repoEmpty").hide();
           $("#repoContent").show();
           for (i = 0; i < result.length; i += 1) {
-              $("#project").append("<option value='"+result[i]+"'>"+result[i]+"</option>")
+              $("#project").append("<option value='"+result[i]+"'>"+result[i]+"</option>");
           }
           $("#project").change();
         }
@@ -144,11 +144,15 @@ $(document).ready(function () {
                 $("#clone").append("Clone");
                 send = false;
             },
-            error: function (request, error) {
-                $("#error").Popup("unable to clone your project, please check your internet connection", {type: 'error', duration: 3000});
+            error: function (xhr, request, error) {
+              console.log(xhr.responseText);
+                $("#error").Popup("unable to clone your project, please check your internet connection.<br/>" + xhr.responseText, {type: 'error', duration: 5000});
                 $("#imgwaitting").hide();
                 $("#clone").empty();
                 $("#clone").append("Clone");
+            },
+            always: function () {
+              send = false;
             }
         });
         return false;
