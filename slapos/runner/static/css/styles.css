@@ -707,7 +707,7 @@ a.lshare img{
 }
 .form{padding:10px; padding-left:20px;}
 .form label{display:block; float:left; width:150px; padding-top:10px;}
-.form input[type=text] ,.form input[type=password] {float:left; width:190px;margin:5px;}
+.form input[type=text] ,.form input[type=password], .form select {float:left; width:190px;margin:5px;}
 .hiddendiv {display: none;white-space: pre-wrap;min-height: 18px;font-size: 13px;
   padding:3px;word-wrap: break-word;width:430px; max-height:120px;font-family: 'Helvetica Neue',Tahoma,Helvetica,Arial,sans-serif;}
 .list{display: block;padding: 5px;background: #E7E7E7; margin-bottom:7px;}

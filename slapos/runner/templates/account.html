@@ -9,45 +9,69 @@
 {% block body %}
 <div id="tabContainer">
   <ul>
-    <li><a href="#tab1" class="active">Your personal information</a></li>
+    <li><a href="#tab1" class="active">Update Account information</a></li>
     {% if params %}
-    <li><a href="#tab2">Build & Run configuration</a></li>
     <li><a href="#tab3">Add user</a></li>
+    <li><a href="#tab2">Build & Run configuration</a></li>
     {% endif %}
   </ul><!-- //Tab buttons -->
   <div class="tabDetails">
     <div id="tab1" class="tabContents">
       <form class="account">
         <div class='form'>
-          <label for="name">Your name: </label>
-          <input type='text' name='name' id='name' value='{{name}}'/>
-          <div class='clear'></div>
-          <label for="email">Your email address: </label>
-          <input type='text' name='email' id='email' value='{{email}}'/>
-          <div class='clear'></div>
-          <label for="username">User name: </label>
-          <input type='text' name='username' id='username' value='{{username}}'/>
-          <div class='clear'></div>
-          <label for="password">Password: </label>
-          <input type='password' name='password' id='password' value=''/>
-          <div class='clear'></div>
-          <label for="cpassword">Confirm Password: </label>
-          <input type='password' name='cpassword' id='cpassword' value=''/>
-          <div class='clear'></div>
+          <fieldset>
+            <legend><b> User credentials </b> </legend>
+            <label for="username">Username: </label>
+            <select name="username" id="username">
+              {% for username in username_list -%}
+              <option value="{{username}}">{{username}}</option>
+              {% endfor -%}
+            </select>
+            <div class='clear'></div>
+            <label for="password">Password: </label>
+            <input type='password' name='password' id='password' value=''/>
+            <div class='clear'></div>
+            <label for="npassword">New Password: </label>
+            <input type='password' name='npassword' id='npassword' value=''/>
+            <div class='clear'></div>
+            <label for="cpassword">Confirm New Password: </label>
+            <input type='password' name='cpassword' id='cpassword' value=''/>
+            <div class='clear'></div>
+          </fieldset>
           <br/>
-          <label for="rcode">Password Recovery code:</label>
-          <input type='password' name='rcode' id='rcode' value=''/>
-          <span class="information"><a href="#" id="information" rel="tooltip">help ?</a></span>
-          <div class='clear'></div>
+          <fieldset>
+            <legend><b> Git user and email </b> </legend>
+            <label for="name">Your name: </label>
+            <input type='text' name='name' id='name' value='{{name}}'/>
+            <div class='clear'></div>
+            <label for="email">Your email address: </label>
+            <input type='text' name='email' id='email' value='{{email}}'/>
+            <div class='clear'></div>
+          </fieldset>
           <br/>
           <label></label>
           <input type="submit" name="update" id ="update" value="Update Account" class="button"/>
           <div class='clear'></div>
         </div>
-        <input type="hidden" name="hasAccount" id="hasAccount" value="{{name}}"/>
       </form>
     </div>
     {% if params %}
+    <div id="tab3" class="tabContents">
+      <form class="slapgrid">
+        <div class='form'>
+          <label for="username">New user name :</label>
+          <input type='text' name='username' id='new_username'/>
+          <div class='clear'></div>
+          <label for="password">New password :</label>
+          <input type='password' name='password' id='new_password'/>
+          <div class='clear'></div>
+          <br/>
+          <label></label>
+          <input type="submit" name="add_user" id="add_user" value="Add new user" class="button"/>
+          <div class='clear'></div>
+        </div>
+      </form>
+    </div>
     <div id="tab2" class="tabContents">
       <form class="slapgrid">
         <div class='form'>
@@ -68,26 +92,6 @@
           <br/>
           <label></label>
           <input type="submit" name="save" id ="save" value="Save config" class="button"/>
-          <div class='clear'></div>
-        </div>
-      </form>
-    </div>
-    <div id="tab3" class="tabContents">
-      <form class="slapgrid">
-        <div class='form'>
-          <label for="username">New user name :</label>
-          <input type='text' name='username' id='new_username'/>
-          <div class='clear'></div>
-          <label for="password">New password :</label>
-          <input type='password' name='password' id='new_password'/>
-          <div class='clear'></div>
-          <label for="new_rcode">Password Recovery code:</label>
-          <input type='password' name='new_rcode' id='new_rcode' value=''/>
-          <span class="information"><a href="#" id="information" rel="tooltip">help ?</a></span>
-          <div class='clear'></div>
-          <br/>
-          <label></label>
-          <input type="submit" name="add_user" id="add_user" value="Add new user" class="button"/>
           <div class='clear'></div>
         </div>
       </form>

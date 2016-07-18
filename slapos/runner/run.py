@@ -8,12 +8,16 @@ import flask
 import logging
 import logging.handlers
 import os
+import urlparse
 from slapos.htpasswd import HtpasswdFile
 from slapos.runner.process import setHandler
 import sys
 from slapos.runner.utils import runInstanceWithLock
 from slapos.runner.views import *
+from slapos.runner.gittools import cloneRepo, switchBranch
+from git import GitCommandError
 import time
+import traceback
 
 TRUE_VALUES = (1, '1', True, 'true', 'True')
 
@@ -129,6 +133,20 @@ def serve(config):
     os.mkdir(software_link)
   setHandler()
   app.logger.addHandler(config.logger)
+  repo_url = app.config['default_repository']
+  branch_name = app.config.get('default_repository_branch', '')
+  repo_name = os.path.basename(repo_url.replace('.git', ''))
+  try:
+    repository_path = os.path.join(workdir, repo_name)
+    app.config.update(default_repository_path=repository_path)
+    if len(os.listdir(workdir)) == 0 or not os.path.exists(repository_path):
+      app.logger.info('cloning repository %s...' % repo_url)
+      result = cloneRepo(repo_url, repository_path)
+      if branch_name:
+        switchBranch(repository_path, branch_name)
+  except GitCommandError, e:
+    app.logger.warning('Error while cloning default repository: %s' % str(e))
+    traceback.print_exc()
   app.logger.info('Running slapgrid...')
   if app.config['auto_deploy_instance'] in TRUE_VALUES:
     import thread

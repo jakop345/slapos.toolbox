@@ -24,7 +24,8 @@ from flask import jsonify
 from slapos.runner.gittools import cloneRepo
 
 from slapos.runner.process import Popen
-from slapos.htpasswd import HtpasswdFile
+# from slapos.htpasswd import HtpasswdFile
+from passlib.apache import HtpasswdFile
 import slapos.slap
 from slapos.grid.utils import md5digest
 
@@ -60,61 +61,36 @@ def html_escape(text):
   """Produce entities within text."""
   return "".join(html_escape_table.get(c, c) for c in text)
 
-
 def getSession(config):
   """
   Get the session data of current user.
   Returns:
     a list of user information or None if the file does not exist.
   """
-  user_path = os.path.join(config['etc_dir'], '.users')
+  user_path = os.path.join(config['etc_dir'], '.htpasswd')
   if os.path.exists(user_path):
     return open(user_path).read().split(';')
 
+def checkUserCredential(config, username, password):
+  htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
+  if not os.path.exists(htpasswdfile):
+    return False
+  passwd = HtpasswdFile(htpasswdfile)
+  return passwd.check_password(username, password)
 
-def saveSession(config, account):
+def updateUserCredential(config, username, password):
   """
   Save account information for the current user
 
-  Args:
-    config: Slaprunner configuration
-    session: Flask session
-    account: New session data to be save
-
-  Returns:
-    True if all goes well or str (error message) if fail
   """
-  # XXX Cedric LN hardcoded path for files
-  user = os.path.join(config['etc_dir'], '.users')
-  htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
-  backup = False
-  try:
-    if os.path.exists(user):
-      #backup previous data
-      data = open(user).read()
-      open('%s.back' % user, 'w').write(data)
-      backup = True
-      if not account[1]:
-        account[1] = data.split(';')[1]
-    #save new account data
-    open(user, 'w').write((';'.join(account)).encode("utf-8"))
-    # Htpasswd file for cloud9
-    # XXX Cedric Le N order of account list values suppose to be fixed
-    # Remove former file to avoid outdated accounts
-    if os.path.exists(htpasswdfile):
-      os.remove(htpasswdfile)
-    passwd = HtpasswdFile(htpasswdfile, create=True)
-    passwd.update(account[0], account[1])
+  if username and password:
+    htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
+    passwd = HtpasswdFile(htpasswdfile)
+    passwd.set_password(username, password)
     passwd.save()
     return True
-  except Exception as e:
-    try:
-      if backup:
-        os.remove(user)
-        os.rename('%s.back' % user, user)
-    except:
-      pass
-    return str(e)
+
+  return False
 
 
 def getRcode(config):
@@ -125,16 +101,22 @@ def getRcode(config):
   except (ConfigParser.NoSectionError, IOError) as e:
     return None
 
+def getUsernameList(config):
+  htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
+  if os.path.exists(htpasswdfile):
+    passwd = HtpasswdFile(htpasswdfile)
+    return passwd.users()
+
+  return []
 
 def createNewUser(config, name, passwd):
   htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
   if os.path.exists(htpasswdfile):
     htpasswd = HtpasswdFile(htpasswdfile)
-    htpasswd.update(name, passwd)
+    htpasswd.set_password(name, passwd)
     htpasswd.save()
     return True
   return False
-
 
 def getCurrentSoftwareReleaseProfile(config):
   """
