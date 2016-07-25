@@ -1,3 +1,9 @@
+0.56 (2016-07-25)
+=================
+
+* slaprunner: remove create user at first launch, clone repository
+  can be done by slaprunner at startup.
+
 0.55 (2016-03-01)
 =================
 
