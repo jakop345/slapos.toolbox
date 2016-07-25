@@ -1,8 +1,8 @@
 0.56 (2016-07-25)
 =================
 
-* slaprunner: remove create user at first launch, clone repository
-  can be done by slaprunner at startup.
+* slaprunner: remove create user at first launch, clone repository can be done by slaprunner at startup.
+* Remove slapos.builder and slapos.monitor as it only contains unused and dead code.
 
 0.55 (2016-03-01)
 =================
