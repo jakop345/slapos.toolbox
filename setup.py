@@ -88,4 +88,5 @@ setup(name=name,
           'networkbench = slapos.networkbench:main'
         ]
       },
+      test_suite='slapos.test',
     )
