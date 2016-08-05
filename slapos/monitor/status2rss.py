@@ -34,7 +34,7 @@ def parseArguments():
 def getKey(item):
   return item.pubDate
 
-def main():
+def genrss():
   parser = parseArguments()
 
   rss_item_list = []
@@ -77,4 +77,4 @@ def main():
     frss.write(rss_feed.to_xml())
 
 def main():
-  exit(main())
+  exit(genrss())

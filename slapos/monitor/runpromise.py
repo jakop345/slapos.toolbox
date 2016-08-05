@@ -184,4 +184,4 @@ def executeCommand(args):
 
 def main():
   arg_parser = parseArguments()
-  sys.exit(runpromise(parser.parse_args()))
+  sys.exit(runpromise(arg_parser.parse_args()))
