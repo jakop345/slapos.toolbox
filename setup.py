@@ -45,11 +45,11 @@ setup(name=name,
         'GitPython', #needed for git manipulation into slaprunner
         'passlib',
         'netifaces',
+        'erp5.util'
       ] + additional_install_requires,
       extras_require = {
         'lampconfigure':  ["mysqlclient"], #needed for MySQL Database access
         'zodbpack': ['ZODB3'], # needed to play with ZODB
-        'agent': ['erp5.util'],
         'flask_auth' : ["Flask-Auth"],
         'networkbench' : ['pycurl'], 
         'check_web_page_http_cache_hit' : ['pycurl'], # needed for check_web_page_http_cache_hit module
