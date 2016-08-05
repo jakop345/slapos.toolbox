@@ -45,6 +45,7 @@ setup(name=name,
         'GitPython', #needed for git manipulation into slaprunner
         'passlib',
         'netifaces',
+        'PyRSS2Gen',
       ] + additional_install_requires,
       extras_require = {
         'lampconfigure':  ["mysqlclient"], #needed for MySQL Database access
@@ -72,6 +73,12 @@ setup(name=name,
           'is-local-tcp-port-opened = slapos.promise.is_local_tcp_port_opened:main',
           'is-process-older-than-dependency-set = slapos.promise.is_process_older_than_dependency_set:main',
           'killpidfromfile = slapos.systool:killpidfromfile', # BBB
+          'monitor.bootstrap = slapos.monitor.monitor:main',
+          'monitor.collect = slapos.monitor.collect:main',
+          'monitor.runpromise = slapos.monitor.runpromise:main',
+          'monitor.genstatus = slapos.monitor.globalstate:main',
+          'monitor.genrss = slapos.monitor.status2rss:main',
+          'monitor.genconfig = slapos.monitor.monitor_gen_update_config:main',
           'runResiliencyUnitTestTestNode = slapos.resiliencytest:runUnitTest',
           'runResiliencyScalabilityTestNode = slapos.resiliencytest:runResiliencyTest',
           'runStandaloneResiliencyTest = slapos.resiliencytest:runStandaloneResiliencyTest',
