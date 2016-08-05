@@ -71,19 +71,22 @@ from tester import SoftwareReleaseTester
 
 class TestMap(object):
   def __init__(self, test_dict):
+    self.ran_test_set = set()
     self.test_map_dict = collections.OrderedDict()
     for key in test_dict:
       group = test_dict[key].get("group", "default")
       if group not in self.test_map_dict:
         self.test_map_dict[group] = [key]
 
+  def addRanTest(self, test):
+    self.ran_test_set.add(test)
 
   def getExcludeList(self, group):
     exclude_list = []
     for key in self.test_map_dict:
       if key != group:
         exclude_list.extend(self.test_map_dict[key])
-    return set(exclude_list)
+    return set(exclude_list + list(self.ran_test_set))
 
   def getGroupList(self):
     return self.test_map_dict.keys()
@@ -328,7 +331,6 @@ def main():
         supply = slap.registerSupply()
         order = slap.registerOpenOrder()
     
-        ran_test_set = set()
         running_test_dict = {}
     
         logger.info('Starting Test Agent run %s ' % agent_parameter_dict['node_title'])
@@ -346,11 +348,10 @@ def main():
     
             # Select a test 
             test_line = test_result.start(
-                exclude_list= list(ran_test_set) + \
-                       list(test_mapping.getExcludeList(group)))
+                exclude_list=list(test_mapping.getExcludeList(group)))
     
             logger.info("Test Line: %s " % test_line)
-            logger.info("Ran Test Set: %s " % ran_test_set)
+            logger.info("Ran Test Set: %s " % test_mapping.ran_test_set)
             logger.info("Running test dict: %s " % running_test_dict)
             logger.info("Group: %s " % group)
     
@@ -382,7 +383,7 @@ def main():
                 agent_parameter_dict.get('software_timeout', general_timeout),
                 agent_parameter_dict.get('instance_timeout', general_timeout)
             )
-            ran_test_set.add(test_name)
+            test_mapping.addRanTest(test_name)
             running_test_dict[test_name] = (test_line, tester, group)
     
           if not running_test_dict:
