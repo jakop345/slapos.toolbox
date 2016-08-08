@@ -111,12 +111,13 @@ def getUsernameList(config):
 
 def createNewUser(config, name, passwd):
   htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
-  if os.path.exists(htpasswdfile):
-    htpasswd = HtpasswdFile(htpasswdfile)
+  try:
+    htpasswd = HtpasswdFile(htpasswdfile, new=(not os.path.exists(htpasswdfile)))
     htpasswd.set_password(name, passwd)
     htpasswd.save()
-    return True
-  return False
+  except IOError:
+    return False
+  return True
 
 def getCurrentSoftwareReleaseProfile(config):
   """
