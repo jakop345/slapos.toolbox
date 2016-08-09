@@ -278,31 +278,55 @@ def waitProcess(config, process, step):
   date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
   slapgridResultToFile(config, step, process.returncode, date)
 
+def runSlapgridWithLock(config, step, process_name, lock=False):
+  """
+  * process_name is the name of the process given to supervisord, which will
+    run the software or the instance
+  * step is one of ('software', 'instance')
+  * lock allows to make this function asynchronous or not
+  """
+  if sup_process.isRunning(config, process_name):
+    return 1
+
+  root_folder = config["%s_root" % step]
+  log_file = config["%s_log" % step]
+
+  if not os.path.exists(root_folder):
+    os.mkdir(root_folder)
+
+  # XXX Hackish and unreliable
+  if os.path.exists(log_file):
+    os.remove(log_file)
+  if not updateProxy(config):
+    return 1
+  if step == 'instance' and not requestInstance(config):
+    return 1
+  try:
+    sup_process.runProcess(config, process_name)
+    if lock:
+      sup_process.waitForProcessEnd(config, process_name)
+    #Saves the current compile software for re-use
+    if step == 'software':
+      config_SR_folder(config)
+    return sup_process.returnCode(config, process_name)
+  except xmlrpclib.Fault:
+    return 1
+
 
 def runSoftwareWithLock(config, lock=False):
   """
     Use Slapgrid to compile current Software Release and wait until
     compilation is done
   """
-  if sup_process.isRunning(config, 'slapgrid-sr'):
-    return 1
+  return runSlapgridWithLock(config, 'software', 'slapgrid-sr', lock)
 
-  if not os.path.exists(config['software_root']):
-    os.mkdir(config['software_root'])
-  # XXX Hackish and unreliable
-  if os.path.exists(config['software_log']):
-    os.remove(config['software_log'])
-  if not updateProxy(config):
-    return 1
-  try:
-    sup_process.runProcess(config, "slapgrid-sr")
-    if lock:
-      sup_process.waitForProcessEnd(config, "slapgrid-sr")
-    #Saves the current compile software for re-use
-    config_SR_folder(config)
-    return sup_process.returnCode(config, "slapgrid-sr")
-  except xmlrpclib.Fault:
-    return 1
+
+def runInstanceWithLock(config, lock=False):
+  """
+    Use Slapgrid to deploy current Software Release and wait until
+    deployment is done.
+  """
+  return runSlapgridWithLock(config, 'instance', 'slapgrid-cp', lock)
 
 
 def config_SR_folder(config):
@@ -371,29 +395,6 @@ def isInstanceRunning(config):
     Return True if slapos is still running and False otherwise
   """
   return sup_process.isRunning(config, 'slapgrid-cp')
-
-
-def runInstanceWithLock(config, lock=False):
-  """
-    Use Slapgrid to deploy current Software Release and wait until
-    deployment is done.
-  """
-  if sup_process.isRunning(config, 'slapgrid-cp'):
-    return 1
-
-  startProxy(config)
-  # XXX Hackish and unreliable
-  if os.path.exists(config['instance_log']):
-    os.remove(config['instance_log'])
-  if not (updateProxy(config) and requestInstance(config)):
-    return 1
-  try:
-    sup_process.runProcess(config, "slapgrid-cp")
-    if lock:
-      sup_process.waitForProcessEnd(config, "slapgrid-cp")
-    return sup_process.returnCode(config, "slapgrid-cp")
-  except xmlrpclib.Fault:
-    return 1
 
 
 def getProfilePath(projectDir, profile):
