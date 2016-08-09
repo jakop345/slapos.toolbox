@@ -129,7 +129,7 @@ def getCurrentSoftwareReleaseProfile(config):
     return realpath(
         config, os.path.join(software_folder, config['software_profile']))
   # XXXX No Comments
-  except:
+  except IOError:
     return ''
 
 
@@ -762,16 +762,11 @@ def realpath(config, path, check_exist=True):
   """
   split_path = path.split('/')
   key = split_path[0]
-  allow_list = {
-    'software_root': config['software_root'],
-    'instance_root': config['instance_root'],
-    'workspace': config['workspace'],
-    'runner_workdir': config['runner_workdir'],
-    'software_link': config['software_link']
-  }
-  if key not in allow_list:
+  virtual_path_list = ('software_root', 'instance_root', 'workspace',
+    'runner_workdir', 'software_link')
+  if key not in virtual_path_list:
     return ''
-
+  allow_list = {path: config[path] for path in virtual_path_list if path in config}
   del split_path[0]
   path = os.path.join(allow_list[key], *split_path)
   if check_exist:
