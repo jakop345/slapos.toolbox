@@ -1,3 +1,4 @@
+import mock
 import os
 import string
 import random
@@ -34,6 +35,38 @@ class TestRunner(unittest.TestCase):
     self.assertNotEqual(password, new_password)
     runner_utils.updateUserCredential(config, login, new_password)
     self.assertTrue(runner_utils.checkUserCredential(config, login, new_password))
+
+  @mock.patch('slapos.runner.utils.open')
+  @mock.patch('os.path.exists')
+  def test_getCurrentSoftwareReleaseProfile(self, mock_path_exists, mock_open):
+    """
+    * Mock a .project file
+    * Tests that getCurrentSoftwareReleaseProfile returns an absolute path
+    """
+    cwd = os.getcwd()
+
+    # If .project file doesn't exist, then getCurrentSoftwareReleaseProfile
+    # returns an empty string
+    config = {'etc_dir': os.path.join(cwd, 'etc'),
+              'workspace': os.path.join(cwd, 'srv', 'runner'),
+              'software_profile': 'software.cfg'}
+
+    profile = runner_utils.getCurrentSoftwareReleaseProfile(config)
+    self.assertEqual(profile, "")
+
+    # If .project points to a SR that doesn't exist, returns empty string
+    mock_open.return_value.read.return_value = "workspace/fake/path/"
+    mock_path_exists.return_value = False
+    profile = runner_utils.getCurrentSoftwareReleaseProfile(config)
+    self.assertEqual(profile, "")
+
+    # If software_profile exists, getCurrentSoftwareReleaseProfile should
+    # return its absolute path
+    mock_open.return_value.read.return_value = "workspace/project/software/"
+    mock_path_exists.return_value = True
+    profile = runner_utils.getCurrentSoftwareReleaseProfile(config)
+    self.assertEqual(profile, os.path.join(config['workspace'], 'project',
+        'software', config['software_profile']))
 
 if __name__ == '__main__':
   random.seed()

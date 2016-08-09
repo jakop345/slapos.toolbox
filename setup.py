@@ -56,6 +56,9 @@ setup(name=name,
         'networkbench' : ['pycurl'], 
         'check_web_page_http_cache_hit' : ['pycurl'], # needed for check_web_page_http_cache_hit module
       },
+      tests_require = [
+        'mock',
+      ],
       zip_safe=False, # proxy depends on Flask, which has issues with
                       # accessing templates
       entry_points={
