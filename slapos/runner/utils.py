@@ -289,8 +289,6 @@ def runSoftwareWithLock(config, lock=False):
 
   if not os.path.exists(config['software_root']):
     os.mkdir(config['software_root'])
-  stopProxy(config)
-  startProxy(config)
   # XXX Hackish and unreliable
   if os.path.exists(config['software_log']):
     os.remove(config['software_log'])
