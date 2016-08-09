@@ -68,6 +68,59 @@ class TestRunner(unittest.TestCase):
     self.assertEqual(profile, os.path.join(config['workspace'], 'project',
         'software', config['software_profile']))
 
+  @mock.patch('os.mkdir')
+  @mock.patch('slapos.runner.utils.updateProxy')
+  @mock.patch('slapos.runner.utils.config_SR_folder')
+  @mock.patch('slapos.runner.sup_process.isRunning')
+  @mock.patch('slapos.runner.sup_process.runProcess', spec_set=True)
+  @mock.patch('slapos.runner.sup_process.waitForProcessEnd')
+  @mock.patch('slapos.runner.sup_process.returnCode')
+  def _runSlapgridWithLockMakesCorrectCallsToSupervisord(self,
+                                                         run_slapgrid_function,
+                                                         process_name,
+                                                         mock_returnCode,
+                                                         mock_waitForProcessEnd,
+                                                         mock_runProcess,
+                                                         mock_isRunning,
+                                                         mock_configSRFolder,
+                                                         mock_updateProxy,
+                                                         mock_mkdir):
+    """
+    Tests that runSoftwareWithLock and runInstanceWithLock make correct calls
+    to sup_process (= supervisord)
+    """
+    mock_updateProxy.return_value = True
+    cwd = os.getcwd()
+    config = {'software_root': os.path.join(cwd, 'software'),
+              'software_log': os.path.join(cwd, 'software.log'),
+              'instance_root': os.path.join(cwd, 'software'),
+              'instance_log': os.path.join(cwd, 'software.log')}
+    # If process is already running, then does nothing
+    mock_isRunning.return_value = True
+    self.assertEqual(run_slapgrid_function(config), 1)
+    self.assertFalse(mock_runProcess.called)
+
+    # If the slapgrid process is not running, it should start it
+    mock_isRunning.return_value = False
+    # First, without Lock
+    run_slapgrid_function(config)
+    mock_runProcess.assert_called_once_with(config, process_name)
+    self.assertFalse(mock_waitForProcessEnd.called)
+    # Second, with Lock
+    mock_runProcess.reset_mock()
+    run_slapgrid_function(config, lock=True)
+    mock_runProcess.assert_called_once_with(config, process_name)
+    mock_waitForProcessEnd.assert_called_once_with(config, process_name)
+
+  def test_runSoftwareWithLockMakesCorrectCallstoSupervisord(self):
+    self._runSlapgridWithLockMakesCorrectCallsToSupervisord(
+      runner_utils.runSoftwareWithLock, 'slapgrid-sr')
+
+  def test_runInstanceWithLockMakesCorrectCallstoSupervisord(self):
+    self._runSlapgridWithLockMakesCorrectCallsToSupervisord(
+      runner_utils.runInstanceWithLock, 'slapgrid-cp')
+
+
 if __name__ == '__main__':
   random.seed()
   unittest.main()
