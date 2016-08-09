@@ -45,7 +45,7 @@ setup(name=name,
         'GitPython', #needed for git manipulation into slaprunner
         'passlib',
         'netifaces',
-        'erp5.util'
+        'erp5.util',
         'PyRSS2Gen',
       ] + additional_install_requires,
       extras_require = {
