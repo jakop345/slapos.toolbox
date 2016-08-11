@@ -158,6 +158,30 @@ class TestRunnerBackEnd(unittest.TestCase):
     self.assertTrue(result)
     runner_utils.open.assert_has_calls([mock.call().write(projectpath)])
 
+  @mock.patch('slapos.runner.utils.isInstanceRunning')
+  @mock.patch('slapos.runner.utils.svcStopAll')
+  def test_removingInstanceStopsProcessesAndCleansInstanceDirectory(self,
+                                                                    mock_svcStopAll,
+                                                                    mock_isInstanceRunning):
+    """
+    When removing the current running instances, processes should be stopped
+    and directories deleted properly
+    """
+    cwd = os.getcwd()
+    config = {'database_uri': os.path.join(cwd, 'proxy.db'),
+              'etc_dir': os.path.join(cwd, 'etc'),
+              'instance_root': os.path.join(cwd, 'instance'),}
+
+    # If slapos node is running, removeCurrentInstance returns a string
+    mock_isInstanceRunning.return_value = True
+    self.assertTrue(isinstance(runner_utils.removeCurrentInstance(config), str))
+    self.assertTrue(mock_isInstanceRunning.called)
+
+    # If slapos is not running, process should be stopped and directories emptied
+    mock_isInstanceRunning.return_value = False
+    result = runner_utils.removeCurrentInstance(config)
+    self.assertTrue(mock_svcStopAll.called)
+    self.sup_process.stopProcess.assert_called_with(config, 'slapproxy')
 
 
 if __name__ == '__main__':
