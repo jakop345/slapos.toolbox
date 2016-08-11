@@ -587,8 +587,8 @@ def newSoftware(folder, config, session):
     folderPath = realpath(config, folder, check_exist=False)
     if folderPath and not os.path.exists(folderPath):
       os.mkdir(folderPath)
-      #load software.cfg and instance.cfg from http://git.erp5.org
-      software = "http://git.erp5.org/gitweb/slapos.git/blob_plain/HEAD:/software/lamp-template/software.cfg"
+      #load software.cfg and instance.cfg from https://lab.nexedi.com
+      software = "https://lab.nexedi.com/nexedi/slapos/raw/master/software/lamp-template/software.cfg"
       softwareContent = ""
       try:
         softwareContent = urllib.urlopen(software).read()
