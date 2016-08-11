@@ -44,7 +44,7 @@ def runProcess(config, process):
   Start a process registered by supervisor
   """
   server = xmlrpclib.Server(config['supervisord_server'])
-  server.supervisor.startProcess(process)
+  return server.supervisor.startProcess(process)
 
 
 def runProcesses(config, processes):
@@ -63,16 +63,21 @@ def stopProcess(config, process):
   """
   if isRunning(config, process):
     server = xmlrpclib.Server(config['supervisord_server'])
-    server.supervisor.stopProcess(process)
+    return server.supervisor.stopProcess(process)
 
 
 def stopProcesses(config, processes):
   """
-  Stop a list of processes
+  Stop a list of processes.
+  Returns True if all the processes have ended correctly.
+  Returns False if at least one process didn't stop correctly.
   """
   server = xmlrpclib.Server(config['supervisord_server'])
+  return_status_list = []
   for proc in processes:
-    server.supervisor.stopProcess(proc)
+    return_status_list.append(server.supervisor.stopProcess(proc))
+  return len(return_status_list) == sum(return_status_list)
+
 
 
 def waitForProcessEnd(config, process):

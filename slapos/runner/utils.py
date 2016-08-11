@@ -231,7 +231,7 @@ def startProxy(config):
   if sup_process.isRunning(config, 'slapproxy'):
     return
   try:
-    sup_process.runProcess(config, "slapproxy")
+    return sup_process.runProcess(config, "slapproxy")
   except xmlrpclib.Fault:
     pass
   time.sleep(4)
@@ -239,7 +239,7 @@ def startProxy(config):
 
 def stopProxy(config):
   """Stop Slapproxy server"""
-  sup_process.stopProcess(config, "slapproxy")
+  return sup_process.stopProcess(config, "slapproxy")
 
 
 def removeProxyDb(config):
