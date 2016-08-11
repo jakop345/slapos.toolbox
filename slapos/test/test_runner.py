@@ -6,11 +6,19 @@ import supervisor
 import thread
 import unittest
 
-from slapos.runner import views as runner_views
-from slapos.runner import utils as runner_utils
-from slapos.runner import sup_process as runner_process
+
+import slapos.runner.utils as runner_utils
+
+import sys
+sys.modules['slapos.runner.utils'].sup_process = mock.MagicMock()
+
 
 class TestRunnerBackEnd(unittest.TestCase):
+  def setUp(self):
+    self.sup_process = runner_utils.sup_process
+    self.sup_process.reset_mock()
+    runner_utils.open = mock.mock_open()
+
   def tearDown(self):
     htpasswd_file = os.path.join(*(os.getcwd(), '.htpasswd'))
     if os.path.exists(htpasswd_file):
@@ -46,9 +54,8 @@ class TestRunnerBackEnd(unittest.TestCase):
     runner_utils.updateUserCredential(config, login, new_password)
     self.assertTrue(runner_utils.checkUserCredential(config, login, new_password))
 
-  @mock.patch('slapos.runner.utils.open')
   @mock.patch('os.path.exists')
-  def test_getCurrentSoftwareReleaseProfile(self, mock_path_exists, mock_open):
+  def test_getCurrentSoftwareReleaseProfile(self, mock_path_exists):
     """
     * Mock a .project file
     * Tests that getCurrentSoftwareReleaseProfile returns an absolute path
@@ -65,14 +72,14 @@ class TestRunnerBackEnd(unittest.TestCase):
     self.assertEqual(profile, "")
 
     # If .project points to a SR that doesn't exist, returns empty string
-    mock_open.return_value.read.return_value = "workspace/fake/path/"
+    runner_utils.open = mock.mock_open(read_data="workspace/fake/path/")
     mock_path_exists.return_value = False
     profile = runner_utils.getCurrentSoftwareReleaseProfile(config)
     self.assertEqual(profile, "")
 
     # If software_profile exists, getCurrentSoftwareReleaseProfile should
     # return its absolute path
-    mock_open.return_value.read.return_value = "workspace/project/software/"
+    runner_utils.open = mock.mock_open(read_data = "workspace/project/software/")
     mock_path_exists.return_value = True
     profile = runner_utils.getCurrentSoftwareReleaseProfile(config)
     self.assertEqual(profile, os.path.join(config['workspace'], 'project',
@@ -81,17 +88,9 @@ class TestRunnerBackEnd(unittest.TestCase):
   @mock.patch('os.mkdir')
   @mock.patch('slapos.runner.utils.updateProxy')
   @mock.patch('slapos.runner.utils.config_SR_folder')
-  @mock.patch('slapos.runner.sup_process.isRunning')
-  @mock.patch('slapos.runner.sup_process.runProcess', spec_set=True)
-  @mock.patch('slapos.runner.sup_process.waitForProcessEnd')
-  @mock.patch('slapos.runner.sup_process.returnCode')
   def _runSlapgridWithLockMakesCorrectCallsToSupervisord(self,
                                                          run_slapgrid_function,
                                                          process_name,
-                                                         mock_returnCode,
-                                                         mock_waitForProcessEnd,
-                                                         mock_runProcess,
-                                                         mock_isRunning,
                                                          mock_configSRFolder,
                                                          mock_updateProxy,
                                                          mock_mkdir):
@@ -106,21 +105,21 @@ class TestRunnerBackEnd(unittest.TestCase):
               'instance_root': os.path.join(cwd, 'software'),
               'instance_log': os.path.join(cwd, 'software.log')}
     # If process is already running, then does nothing
-    mock_isRunning.return_value = True
+    self.sup_process.isRunning.return_value = True
     self.assertEqual(run_slapgrid_function(config), 1)
-    self.assertFalse(mock_runProcess.called)
+    self.assertFalse(self.sup_process.runProcess.called)
 
     # If the slapgrid process is not running, it should start it
-    mock_isRunning.return_value = False
+    self.sup_process.isRunning.return_value = False
     # First, without Lock
     run_slapgrid_function(config)
-    mock_runProcess.assert_called_once_with(config, process_name)
-    self.assertFalse(mock_waitForProcessEnd.called)
+    self.sup_process.runProcess.assert_called_once_with(config, process_name)
+    self.assertFalse(self.sup_process.waitForProcessEnd.called)
     # Second, with Lock
-    mock_runProcess.reset_mock()
+    self.sup_process.reset_mock()
     run_slapgrid_function(config, lock=True)
-    mock_runProcess.assert_called_once_with(config, process_name)
-    mock_waitForProcessEnd.assert_called_once_with(config, process_name)
+    self.sup_process.runProcess.assert_called_once_with(config, process_name)
+    self.sup_process.waitForProcessEnd.assert_called_once_with(config, process_name)
 
   def test_runSoftwareWithLockMakesCorrectCallstoSupervisord(self):
     self._runSlapgridWithLockMakesCorrectCallsToSupervisord(
@@ -132,19 +131,13 @@ class TestRunnerBackEnd(unittest.TestCase):
 
   @mock.patch('os.path.exists')
   @mock.patch('os.remove')
-  @mock.patch('slapos.runner.sup_process.stopProcess')
-  @mock.patch('slapos.runner.utils.open')
   @mock.patch('slapos.runner.utils.startProxy')
   @mock.patch('slapos.runner.utils.stopProxy')
   @mock.patch('slapos.runner.utils.removeProxyDb')
-  @mock.patch('slapos.runner.utils.removeInstanceRoot')
   def test_changingSRUpdatesProjectFileWithExistingPath(self,
-                                                        mock_removeInstanceRoot,
                                                         mock_removeProxyDb,
                                                         mock_stopProxy,
                                                         mock_startProxy,
-                                                        mock_open,
-                                                        mock_stopProcess,
                                                         mock_remove,
                                                         mock_path_exists):
     cwd = os.getcwd()
@@ -163,7 +156,7 @@ class TestRunnerBackEnd(unittest.TestCase):
     mock_path_exists.return_value = True
     result = runner_utils.configNewSR(config, projectpath)
     self.assertTrue(result)
-    mock_open.assert_has_calls([mock.call().write(projectpath)])
+    runner_utils.open.assert_has_calls([mock.call().write(projectpath)])
 
 
 
