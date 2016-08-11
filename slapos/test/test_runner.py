@@ -183,6 +183,47 @@ class TestRunnerBackEnd(unittest.TestCase):
     self.assertTrue(mock_svcStopAll.called)
     self.sup_process.stopProcess.assert_called_with(config, 'slapproxy')
 
+  @mock.patch('os.listdir')
+  @mock.patch('os.path.exists')
+  @mock.patch('slapos.runner.utils.removeCurrentInstance')
+  @mock.patch('slapos.runner.utils.removeSoftwareRootDirectory')
+  def test_removingUsedSoftwareReleaseCleansInstancesToo(self,
+                                                         mock_removeSoftwareRootDirectory,
+                                                         mock_removeCurrentInstance,
+                                                         mock_path_exists,
+                                                         mock_listdir):
+    """
+    When removing the Software Release on which depends the current running
+    instances, the current instances should be stopped and removed properly.
+    """
+    # mock_listir is needed for not raising in loadSoftwareRList or future equivalent
+    mock_listdir.return_value = []
+
+    cwd = os.getcwd()
+    config = {'etc_dir': os.path.join(cwd, 'etc'),
+              'software_root': os.path.join(cwd, 'software'),
+              'software_link': os.path.join(cwd, 'softwareLink'),}
+
+    self.sup_process.isRunning.return_value = False
+
+    # First tests that if the current instance doesn't extend the Software
+    # Release to delete, the instance isn't deleted
+    runner_utils.open = mock.mock_open(read_data="/workspace/software/another/")
+    runner_utils.removeSoftwareByName(config, '1234567890', 'my_software_name')
+
+    self.assertFalse(mock_removeCurrentInstance.called)
+    self.assertTrue(mock_removeSoftwareRootDirectory.called)
+
+    # If the current Instance extends the Software Release, then both must
+    # be removed
+    mock_removeSoftwareRootDirectory.reset_mock()
+
+    runner_utils.open = mock.mock_open(read_data="/workspace/software/my_software_name/")
+    runner_utils.removeSoftwareByName(config, '1234567890', 'my_software_name')
+
+    self.assertTrue(mock_removeCurrentInstance.called)
+    self.assertTrue(mock_removeSoftwareRootDirectory.called)
+
 
 if __name__ == '__main__':
   random.seed()
