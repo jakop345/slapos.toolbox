@@ -450,10 +450,9 @@ def svcStartAll(config):
   except:
     pass
 
-def removeInstanceRoot(config):
-  """Clean instance directory and stop all its running processes"""
+def removeInstanceRootDirectory(config):
+  """Clean instance directory"""
   if os.path.exists(config['instance_root']):
-    svcStopAll(config)
     for instance_directory in os.listdir(config['instance_root']):
       instance_directory = os.path.join(config['instance_root'], instance_directory)
       # XXX: hardcoded
@@ -467,6 +466,27 @@ def removeInstanceRoot(config):
             # Some directories may be read-only, preventing to remove files in it
             os.chmod(fullPath, 0744)
       shutil.rmtree(instance_directory)
+
+def removeCurrentInstance(config):
+  if isInstanceRunning(config):
+    return "Instantiation in progress, cannot remove instance"
+
+  # Stop all processes
+  svcStopAll(config)
+  if stopProxy(config):
+    removeProxyDb(config)
+  else:
+    return "Something went wrong when trying to stop slapproxy."
+
+  # Remove Instance directory and data related to the instance
+  try:
+    removeInstanceRootDirectory(config)
+    param_path = os.path.join(config['etc_dir'], ".parameter.xml")
+    if os.path.exists(param_path):
+      os.remove(param_path)
+  except IOError:
+    return "The filesystem couldn't been cleaned properly"
+  return True
 
 
 def getSvcStatus(config):
@@ -545,13 +565,7 @@ def configNewSR(config, projectpath):
   if folder:
     sup_process.stopProcess(config, 'slapgrid-cp')
     sup_process.stopProcess(config, 'slapgrid-sr')
-    stopProxy(config)
-    removeProxyDb(config)
-    startProxy(config)
-    removeInstanceRoot(config)
-    param_path = os.path.join(config['etc_dir'], ".parameter.xml")
-    if os.path.exists(param_path):
-      os.remove(param_path)
+    removeCurrentInstance(config)
     open(os.path.join(config['etc_dir'], ".project"), 'w').write(projectpath)
     return True
   else:
