@@ -2,17 +2,27 @@ import mock
 import os
 import string
 import random
+import supervisor
+import thread
 import unittest
 
 from slapos.runner import views as runner_views
 from slapos.runner import utils as runner_utils
 from slapos.runner import sup_process as runner_process
 
-class TestRunner(unittest.TestCase):
+class TestRunnerBackEnd(unittest.TestCase):
   def tearDown(self):
     htpasswd_file = os.path.join(*(os.getcwd(), '.htpasswd'))
     if os.path.exists(htpasswd_file):
       os.remove(htpasswd_file)
+
+  def _startSupervisord(self):
+    cwd = os.getcwd()
+    supervisord_config_file = os.path.join(cwd, 'supervisord.conf')
+    open(supervisord_config_file, 'w').write("""
+    """)
+    supervisord = supervisor.supervisord.Supervisord('-c', supervisord_config_file)
+    thread.start_new_thread()
 
   def test_UserCanLoginAndUpdateCredentials(self):
     """
@@ -119,6 +129,42 @@ class TestRunner(unittest.TestCase):
   def test_runInstanceWithLockMakesCorrectCallstoSupervisord(self):
     self._runSlapgridWithLockMakesCorrectCallsToSupervisord(
       runner_utils.runInstanceWithLock, 'slapgrid-cp')
+
+  @mock.patch('os.path.exists')
+  @mock.patch('os.remove')
+  @mock.patch('slapos.runner.sup_process.stopProcess')
+  @mock.patch('slapos.runner.utils.open')
+  @mock.patch('slapos.runner.utils.startProxy')
+  @mock.patch('slapos.runner.utils.stopProxy')
+  @mock.patch('slapos.runner.utils.removeProxyDb')
+  @mock.patch('slapos.runner.utils.removeInstanceRoot')
+  def test_changingSRUpdatesProjectFileWithExistingPath(self,
+                                                        mock_removeInstanceRoot,
+                                                        mock_removeProxyDb,
+                                                        mock_stopProxy,
+                                                        mock_startProxy,
+                                                        mock_open,
+                                                        mock_stopProcess,
+                                                        mock_remove,
+                                                        mock_path_exists):
+    cwd = os.getcwd()
+    config = {'etc_dir' : os.path.join(cwd, 'etc'),
+              'workspace': os.path.join(cwd, 'srv', 'runner')}
+    projectpath = 'workspace/project/software/'
+    self.assertNotEqual(runner_utils.realpath(config, projectpath, \
+                                              check_exist=False), '')
+
+    # If projectpath doesn't exist, .project file shouldn't be written
+    mock_path_exists.return_value = False
+    result = runner_utils.configNewSR(config, projectpath)
+    self.assertFalse(result)
+
+    # If projectpath exist, .project file should be overwritten
+    mock_path_exists.return_value = True
+    result = runner_utils.configNewSR(config, projectpath)
+    self.assertTrue(result)
+    mock_open.assert_has_calls([mock.call().write(projectpath)])
+
 
 
 if __name__ == '__main__':
