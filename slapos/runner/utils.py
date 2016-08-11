@@ -646,27 +646,47 @@ def getSoftwareReleaseName(config):
     return software.replace(' ', '_')
   return "No_name"
 
-
-def removeSoftwareByName(config, md5, folderName):
-  """Remove all content of the software release specified by md5
+def removeSoftwareRootDirectory(config, md5, folder_name):
+  """
+  Removes all content in the filesystem of the software release specified by md5
 
   Args:
     config: slaprunner configuration
-    foldername: the link name given to the software release
-    md5: the md5 filename given by slapgrid to SR folder"""
-  if isSoftwareRunning(config) or isInstanceRunning(config):
-    raise Exception("Software installation or instantiation in progress, cannot remove")
+    folder_name: the link name given to the software release
+    md5: the md5 filename given by slapgrid to SR folder
+  """
   path = os.path.join(config['software_root'], md5)
-  linkpath = os.path.join(config['software_link'], folderName)
+  linkpath = os.path.join(config['software_link'], folder_name)
   if not os.path.exists(path):
-    raise Exception("Cannot remove software Release: No such file or directory")
+    return (0, "Cannot remove software Release: No such file or directory")
   if not os.path.exists(linkpath):
-    raise Exception("Cannot remove software Release: No such file or directory %s" %
-                    ('software_root/' + folderName))
-  svcStopAll(config)
+    return (0, "Cannot remove software Release: No such file or directory %s" %
+                    ('software_root/' + folder_name))
   os.unlink(linkpath)
   shutil.rmtree(path)
-  return loadSoftwareRList(config)
+  return
+
+def removeSoftwareByName(config, md5, folder_name):
+  """
+  Removes a software release specified by its md5 and its name from the webrunner.
+  If the software release is the one of the current running instance, then
+  the instance should be stopped.
+
+  Args:
+    config: slaprunner configuration
+    folder_name: the link name given to the software release
+    md5: the md5 filename given by slapgrid to SR folder
+  """
+  if isSoftwareRunning(config) or isInstanceRunning(config):
+    return (0, "Software installation or instantiation in progress, cannot remove")
+
+  if getSoftwareReleaseName(config) == folder_name:
+    removeCurrentInstance(config)
+
+  result = removeSoftwareRootDirectory(config, md5, folder_name)
+  if result is not None:
+    return result
+  return 1, loadSoftwareRList(config)
 
 
 def tail(f, lines=20):

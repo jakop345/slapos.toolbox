@@ -367,12 +367,9 @@ def removeFile():
 
 
 def removeSoftwareDir():
-  try:
-    data = removeSoftwareByName(app.config, request.form['md5'],
-            request.form['title'])
-    return jsonify(code=1, result=data)
-  except Exception as e:
-    return jsonify(code=0, result=str(e))
+    status, message = removeSoftwareByName(app.config, request.form['md5'],
+      request.form['title'])
+    return jsonify(code=status, result=message)
 
 
 #read file and return content to ajax
