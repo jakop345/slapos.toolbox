@@ -20,9 +20,14 @@ class TestRunnerBackEnd(unittest.TestCase):
     runner_utils.open = open
 
   def tearDown(self):
-    htpasswd_file = os.path.join(*(os.getcwd(), '.htpasswd'))
-    if os.path.exists(htpasswd_file):
-      os.remove(htpasswd_file)
+    garbage_file_list = [
+      os.path.join(*(os.getcwd(), '.htpasswd')),
+      os.path.join(*(os.getcwd(), '.turn-left')),
+      os.path.join(*(os.getcwd(), 'slapos-test.cfg')),
+    ]
+    for garbage_file in garbage_file_list:
+      if os.path.exists(garbage_file):
+        os.remove(garbage_file)
 
   def _startSupervisord(self):
     cwd = os.getcwd()
@@ -225,6 +230,71 @@ class TestRunnerBackEnd(unittest.TestCase):
     self.assertTrue(mock_removeCurrentInstance.called)
     self.assertTrue(mock_removeSoftwareRootDirectory.called)
 
+  @mock.patch('slapos.runner.utils.runInstanceWithLock')
+  @mock.patch('slapos.runner.utils.runSoftwareWithLock')
+  def test_runSoftwareRunOnlyOnceIfSoftwareSuccessfullyCompiledOnFirstTime(self,
+                                                                           mock_runSoftwareWithLock,
+                                                                           mock_runInstanceWithLock):
+    cwd = os.getcwd()
+    config = {'runner_workdir': cwd,
+              'etc_dir': cwd}
+
+    build_and_run_parameter_dict = {
+      'run_instance': False,
+      'run_software': True,
+      'max_run_instance': 3,
+      'max_run_software': 3,
+    }
+    runner_utils.saveBuildAndRunParams(config, build_and_run_parameter_dict)
+
+    # First, configuration is set to only run the compilation of the software release
+    # Both runSoftwareWithLock and runInstanceWithLock succeed on 1st try
+    mock_runSoftwareWithLock.return_value = 0
+    mock_runInstanceWithLock.return_value = 0
+
+    runner_utils.runSlapgridUntilSuccess(config, 'software')
+    self.assertEqual(mock_runSoftwareWithLock.call_count, 1)
+    self.assertEqual(mock_runInstanceWithLock.call_count, 0)
+
+    # Second, instanciation should start if compilation succeeded
+    mock_runSoftwareWithLock.reset_mock()
+    build_and_run_parameter_dict.update({'run_instance': True})
+    runner_utils.saveBuildAndRunParams(config, build_and_run_parameter_dict)
+
+    runner_utils.runSlapgridUntilSuccess(config, 'software')
+    self.assertEqual(mock_runSoftwareWithLock.call_count, 1)
+    self.assertEqual(mock_runInstanceWithLock.call_count, 1)
+
+  @mock.patch('slapos.runner.utils.runInstanceWithLock')
+  @mock.patch('slapos.runner.utils.runSoftwareWithLock')
+  def test_runSoftwareDonotRestartForeverEvenIfBuildoutFileIsWrong(self,
+                                                                   mock_runSoftwareWithLock,
+                                                                   mock_runInstanceWithLock):
+    """
+    Restarting compilation or instanciation should happen a limited number of
+    times to prevent useless runs due to a mistaken buildout config.
+    """
+    cwd = os.getcwd()
+    config = {'runner_workdir': cwd,
+              'etc_dir': cwd}
+
+    build_and_run_parameter_dict = {
+      'run_instance': True,
+      'run_software': True,
+      'max_run_instance': 3,
+      'max_run_software': 3,
+    }
+    runner_utils.saveBuildAndRunParams(config, build_and_run_parameter_dict)
+
+    # runSoftwareWithLock always fail and runInstanceWithLock succeeds on 1st try
+    mock_runSoftwareWithLock.return_value = 1
+    mock_runInstanceWithLock.return_value = 0
+
+    runner_utils.runSlapgridUntilSuccess(config, 'software')
+    self.assertEqual(mock_runSoftwareWithLock.call_count,
+                     build_and_run_parameter_dict['max_run_software'])
+    # if running software fails, then no need to try to deploy instances
+    self.assertEqual(mock_runInstanceWithLock.call_count, 0)
 
 if __name__ == '__main__':
   random.seed()
