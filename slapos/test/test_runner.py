@@ -17,7 +17,7 @@ class TestRunnerBackEnd(unittest.TestCase):
   def setUp(self):
     self.sup_process = runner_utils.sup_process
     self.sup_process.reset_mock()
-    runner_utils.open = mock.mock_open()
+    runner_utils.open = open
 
   def tearDown(self):
     htpasswd_file = os.path.join(*(os.getcwd(), '.htpasswd'))
@@ -154,6 +154,7 @@ class TestRunnerBackEnd(unittest.TestCase):
 
     # If projectpath exist, .project file should be overwritten
     mock_path_exists.return_value = True
+    runner_utils.open = mock.mock_open()
     result = runner_utils.configNewSR(config, projectpath)
     self.assertTrue(result)
     runner_utils.open.assert_has_calls([mock.call().write(projectpath)])
