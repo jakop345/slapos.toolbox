@@ -296,6 +296,19 @@ class TestRunnerBackEnd(unittest.TestCase):
     # if running software fails, then no need to try to deploy instances
     self.assertEqual(mock_runInstanceWithLock.call_count, 0)
 
+  @unittest.skip('No scenario defined')
+  def test_autoDeployWontEraseExistingInstances(self):
+    raise NotImplementedError
+
+  @unittest.skip('No scenario defined')
+  def test_requestingInstanceCorrectlyPassesTypeAndParameters(self):
+    raise NotImplementedError
+
+  @unittest.skip('No scenario defined')
+  def test_parametersAreCorrectlyUpdatedAndGivenToTheInstance(self):
+    raise NotImplementedError
+
+
 if __name__ == '__main__':
   random.seed()
   unittest.main()
