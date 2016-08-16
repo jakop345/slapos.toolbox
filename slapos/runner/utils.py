@@ -603,7 +603,7 @@ def newSoftware(folder, config, session):
       removeProxyDb(config)
       startProxy(config)
       #Stop runngin process and remove existing instance
-      removeInstanceRoot(config)
+      removeCurrentInstance(config)
       session['title'] = getProjectTitle(config)
       code = 1
     else:
