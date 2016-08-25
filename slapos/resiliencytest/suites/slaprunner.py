@@ -148,7 +148,10 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     while limit > 0 and status != '1':
       status = getSRStatus()
       limit -= 1
-      self.logger.info('Software release is still building. Sleeping...')
+      if status == '0':
+        self.logger.info('Software release is Failing to Build. Sleeping...')
+      else:
+        self.logger.info('Software release is still building. Sleeping...')
       time.sleep(60)
 
 
@@ -197,28 +200,10 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
         data='path=workspace/slapos/software/%s/' % software_name
     )
 
-  def _getRcode(self):
-    #XXX-Nicolas: hardcoded url. Best way right now to automate the tests...
-    monitoring_password = "insecure"
-    monitor_url = self.monitor_url + "/private/monitor.global.json"
-    monitor_url = monitor_url.replace('https://', 'https://admin:%s@' % monitoring_password)
-    result = urllib.urlopen(monitor_url)
-
-    if result.getcode() is not 200:
-      raise NotHttpOkException(result.getcode())
-
-    monitor_json = json.loads(result.read())
-    for parameter in monitor_json['parameters']:
-      if parameter['title'] == 'recovery-code':
-        return parameter['value']
-
   def generateData(self):
-    self.slaprunner_password = ''.join(
-        random.SystemRandom().sample(string.ascii_lowercase, 8)
-    )
-    self.slaprunner_user = 'slapos'
-    self.logger.info('Generated slaprunner user is: %s' % self.slaprunner_user)
-    self.logger.info('Generated slaprunner password is: %s' % self.slaprunner_password)
+    """
+    Generate Data for slaprunner
+    """
 
   def pushDataOnMainInstance(self):
     """
@@ -231,20 +216,10 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     """
     self.logger.debug('Getting the backend URL and recovery code...')
     parameter_dict = self._getPartitionParameterDict()
-    self.slaprunner_backend_url = parameter_dict['backend_url']
+    self.slaprunner_backend_url = parameter_dict['backend-url']
     self.logger.info('backend_url is %s.' % self.slaprunner_backend_url)
-    self.monitor_url = parameter_dict['monitor-base-url']
-    slaprunner_recovery_code = self._getRcode()
-
-    self.logger.debug('Creating the slaprunner account...')
-    self._connectToSlaprunner(
-        resource='configAccount',
-        data='name=slapos&username=%s&email=slapos@slapos.org&password=%s&rcode=%s' % (
-            self.slaprunner_user,
-            self.slaprunner_password,
-            slaprunner_recovery_code
-        )
-    )
+    self.slaprunner_user = parameter_dict['init-user']
+    self.slaprunner_password = parameter_dict['init-password']
 
     self._login()
 
@@ -269,7 +244,7 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     # XXX: does the promise wait for the software to be built and the instance to be ready?
     old_slaprunner_backend_url = self.slaprunner_backend_url
     self.slaprunner_backend_url = self._returnNewInstanceParameter(
-        parameter_key='backend_url',
+        parameter_key='backend-url',
         old_parameter_value=old_slaprunner_backend_url
     )
     self._login()
