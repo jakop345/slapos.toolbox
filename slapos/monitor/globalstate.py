@@ -159,6 +159,23 @@ def run(args_list):
   with open(public_state_file, 'w') as fpglobal:
     fpglobal.write(json.dumps(public_state_dict))
 
+  # Save document list in a file called _document_list
+  public_document_list = [os.path.splitext(file)[0]
+                for file in os.listdir(status_folder) if file.endswith('.json')]
+  private_document_list = [os.path.splitext(file)[0]
+                  for file in os.listdir(base_folder) if file.endswith('.json')]
+  data_document_list = [os.path.splitext(file)[0]
+              for file in os.listdir(statistic_folder) if file.endswith('.json')]
+
+  with open(os.path.join(status_folder, '_document_list'), 'w') as lfile:
+    lfile.write('\n'.join(public_document_list))
+
+  with open(os.path.join(base_folder, '_document_list'), 'w') as lfile:
+    lfile.write('\n'.join(private_document_list))
+
+  with open(os.path.join(statistic_folder, '_document_list'), 'w') as lfile:
+    lfile.write('\n'.join(data_document_list))
+
   generateStatisticsData(
     os.path.join(statistic_folder, 'monitor_state.data.json'),
     global_state_dict)
