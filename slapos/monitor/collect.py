@@ -262,7 +262,7 @@ def appendToJsonFile(file_path, content, stepback=2):
     jfile.seek(position)
     jfile.write('%s}' % ',"{}"]'.format(content))
 
-def initProcessDataFile(file_path):
+def initProcessDataFile(process_file):
   with open(process_file, 'w') as fprocess:
     data_dict = {
       "date": time.time(),
@@ -270,7 +270,7 @@ def initProcessDataFile(file_path):
     }
     fprocess.write(json.dumps(data_dict))
 
-def initMemoryDataFile(file_path):
+def initMemoryDataFile(mem_file):
   with open(mem_file, 'w') as fmem:
     data_dict = {
       "date": time.time(),
@@ -278,7 +278,7 @@ def initMemoryDataFile(file_path):
     }
     fmem.write(json.dumps(data_dict))
 
-def initIODataFile(file_path):
+def initIODataFile(io_file):
   with open(io_file, 'w') as fio:
     data_dict = {
       "date": time.time(),
