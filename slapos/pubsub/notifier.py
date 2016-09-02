@@ -3,7 +3,10 @@
 
 import argparse
 import csv
+import datetime
+import json
 import httplib
+import os
 import socket
 import subprocess
 import sys
@@ -12,6 +15,20 @@ import traceback
 import urllib2
 import urlparse
 import uuid
+
+def createStatusItem(item_directory, instance_name, callback, date, link, status):
+  global app
+  callback_short_name = os.path.basename(callback)
+  content = json.dumps({
+    'title': '%s-PBS %s : %s' % (instance_name, callback_short_name, status),
+    'description': '%s run at %s' % (callback_short_name, datetime.datetime.fromtimestamp(date).isoformat()),
+    'pubDate': date,
+    'link': link,
+  })
+
+  item_path = os.path.join(item_directory, "status_%s" % time.time())
+  with open(item_path, 'w') as file:
+    file.write(content)
 
 
 def main():
@@ -32,7 +49,30 @@ def main():
                       type=int, required=False,
                       help="Additional parameter for notification-url")
 
+  # Verbose mode
+  parser.add_argument('--instance-root-name', dest='instance_root_name',
+                      type=str, required=False,
+                      help="Path to config file containing info on instance")
+  parser.add_argument('--log-url', required=False, dest='log_url',
+                      help="URL where the log file will be accessible")
+  parser.add_argument('--status-item-directory', dest='status_item_directory',
+                      required=False, default='', type=str,
+                      help="Directory containing PBS status to publish as feed.")
+
   args = parser.parse_args()
+
+  if args.instance_root_name and args.log_url and args.status_item_directory:
+    # Verbose mode
+    saveStatus = lambda status: createStatusItem(args.status_item_directory,
+                                  args.instance_root_name,
+                                  args.executable[0],
+                                  time.time(),
+                                  args.log_url,
+                                  status)
+  else:
+    saveStatus = lambda status: None
+
+  saveStatus('STARTED')
 
   try:
     content = subprocess.check_output(
@@ -45,7 +85,9 @@ def main():
           args.executable[0],
           content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
       ))
+    saveStatus('FINISHED')
   except subprocess.CalledProcessError as e:
+    saveStatus('ERROR')
     content = e.output
     exit_code = e.returncode
     content = ("FAILURE</br><p>%s Failed with returncode <em>%d</em>.</p>"
@@ -91,22 +133,29 @@ def main():
     notification_path += str(transaction_id)
 
     headers = {'Content-Type': feed.info().getheader('Content-Type')}
+    error_message = ""
     try:
       notification = httplib.HTTPConnection(notification_url.hostname,
                                             notification_port)
       notification.request('POST', notification_path, body, headers)
       response = notification.getresponse()
       if not (200 <= response.status < 300):
-        sys.stderr.write("The remote server at %s didn't send a successful reponse.\n" % notif_url)
-        sys.stderr.write("Its response was %r\n" % response.reason)
+        error_message = ("The remote server at %s didn't send a successful reponse.\n"
+                         "Its response was %r\n") % (notif_url, response.reason)
         some_notification_failed = True
     except socket.error as exc:
-      sys.stderr.write("Connection with remote server at %s failed:\n" % notif_url)
-      sys.stderr.write(traceback.format_exc(exc))
+      error_message = "Connection with remote server at %s failed:\n" % notif_url
+      error_message.append(traceback.format_exc(exc))
       some_notification_failed = True
+    finally:
+      if error_message:
+        sys.stderr.write(error_message)
+        saveStatus(saveStatus('ERROR ON NOTIFYING : %s') % error_message)
 
   if some_notification_failed:
     sys.exit(1)
+
+  saveStatus('OK')
 
 if __name__ == '__main__':
   main()
