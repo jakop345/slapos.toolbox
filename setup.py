@@ -65,6 +65,7 @@ setup(name=name,
         'console_scripts': [
           'agent = slapos.agent.agent:main',
           'check-web-page-http-cache-hit = slapos.promise.check_web_page_http_cache_hit:main',
+          'check-feed-as-promise = slapos.checkfeedaspromise:main',
           'clouddestroy = slapos.cloudmgr.destroy:main',
           'cloudgetprivatekey = slapos.cloudmgr.getprivatekey:main',
           'cloudgetpubliciplist = slapos.cloudmgr.getpubliciplist:main',
