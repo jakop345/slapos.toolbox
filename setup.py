@@ -60,7 +60,7 @@ setup(name=name,
                       # accessing templates
       entry_points={
         'console_scripts': [
-          'agent = slapos.agent.agent:main [agent]',
+          'agent = slapos.agent.agent:main',
           'check-web-page-http-cache-hit = slapos.promise.check_web_page_http_cache_hit:main',
           'clouddestroy = slapos.cloudmgr.destroy:main',
           'cloudgetprivatekey = slapos.cloudmgr.getprivatekey:main',
