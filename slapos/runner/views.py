@@ -25,7 +25,7 @@ from slapos.runner.utils import (checkSoftwareFolder, configNewSR, checkUserCred
                                  isSoftwareRunning, isSoftwareReleaseReady, isText,
                                  loadSoftwareRList, md5sum, newSoftware,
                                  readFileFrom, readParameters, realpath,
-                                 removeInstanceRoot, removeProxyDb,
+                                 removeCurrentInstance,
                                  removeSoftwareByName, runSlapgridUntilSuccess,
                                  saveBuildAndRunParams,
                                  setMiniShellHistory,
@@ -216,17 +216,9 @@ def supervisordStatus():
 
 
 def removeInstance():
-  if isInstanceRunning(app.config):
-    flash('Instantiation in progress, cannot remove')
-  else:
-    removeProxyDb(app.config)
-    stopProxy(app.config)
-    svcStopAll(app.config)  # Stop All instance process
-    removeInstanceRoot(app.config)
-    param_path = os.path.join(app.config['etc_dir'], ".parameter.xml")
-    if os.path.exists(param_path):
-      os.remove(param_path)
-    flash('Instance removed')
+  result = removeCurrentInstance(app.config)
+  if isinstance(result, str):
+    flash(result)
   return redirect(url_for('inspectInstance'))
 
 
@@ -375,12 +367,9 @@ def removeFile():
 
 
 def removeSoftwareDir():
-  try:
-    data = removeSoftwareByName(app.config, request.form['md5'],
-            request.form['title'])
-    return jsonify(code=1, result=data)
-  except Exception as e:
-    return jsonify(code=0, result=str(e))
+    status, message = removeSoftwareByName(app.config, request.form['md5'],
+      request.form['title'])
+    return jsonify(code=status, result=message)
 
 
 #read file and return content to ajax

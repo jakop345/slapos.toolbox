@@ -56,12 +56,16 @@ setup(name=name,
         'networkbench' : ['pycurl'], 
         'check_web_page_http_cache_hit' : ['pycurl'], # needed for check_web_page_http_cache_hit module
       },
+      tests_require = [
+        'mock',
+      ],
       zip_safe=False, # proxy depends on Flask, which has issues with
                       # accessing templates
       entry_points={
         'console_scripts': [
           'agent = slapos.agent.agent:main',
           'check-web-page-http-cache-hit = slapos.promise.check_web_page_http_cache_hit:main',
+          'check-feed-as-promise = slapos.checkfeedaspromise:main',
           'clouddestroy = slapos.cloudmgr.destroy:main',
           'cloudgetprivatekey = slapos.cloudmgr.getprivatekey:main',
           'cloudgetpubliciplist = slapos.cloudmgr.getpubliciplist:main',
@@ -70,6 +74,7 @@ setup(name=name,
           'cloudstart = slapos.cloudmgr.start:main',
           'cloudstop = slapos.cloudmgr.stop:main',
           'equeue = slapos.equeue:main',
+          'generatefeed = slapos.generatefeed:main',
           'htpasswd = slapos.htpasswd:main',
           'is-local-tcp-port-opened = slapos.promise.is_local_tcp_port_opened:main',
           'is-process-older-than-dependency-set = slapos.promise.is_process_older_than_dependency_set:main',
@@ -89,6 +94,7 @@ setup(name=name,
           'pubsubnotifier = slapos.pubsub.notifier:main',
           'pubsubserver = slapos.pubsub:main',
           'qemu-qmp-client = slapos.qemuqmpclient:main',
+          'rdiffbackup.genstatrss = slapos.resilient.rdiffBackupStat2RSS:main',
           'slapos-kill = slapos.systool:kill',
           'slaprunnertest = slapos.runner.runnertest:main',
           'slaprunnerteststandalone = slapos.runner.runnertest:runStandaloneUnitTest',

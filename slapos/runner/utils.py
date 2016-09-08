@@ -111,12 +111,13 @@ def getUsernameList(config):
 
 def createNewUser(config, name, passwd):
   htpasswdfile = os.path.join(config['etc_dir'], '.htpasswd')
-  if os.path.exists(htpasswdfile):
-    htpasswd = HtpasswdFile(htpasswdfile)
+  try:
+    htpasswd = HtpasswdFile(htpasswdfile, new=(not os.path.exists(htpasswdfile)))
     htpasswd.set_password(name, passwd)
     htpasswd.save()
-    return True
-  return False
+  except IOError:
+    return False
+  return True
 
 def getCurrentSoftwareReleaseProfile(config):
   """
@@ -128,7 +129,7 @@ def getCurrentSoftwareReleaseProfile(config):
     return realpath(
         config, os.path.join(software_folder, config['software_profile']))
   # XXXX No Comments
-  except:
+  except IOError:
     return ''
 
 
@@ -230,7 +231,7 @@ def startProxy(config):
   if sup_process.isRunning(config, 'slapproxy'):
     return
   try:
-    sup_process.runProcess(config, "slapproxy")
+    return sup_process.runProcess(config, "slapproxy")
   except xmlrpclib.Fault:
     pass
   time.sleep(4)
@@ -238,7 +239,7 @@ def startProxy(config):
 
 def stopProxy(config):
   """Stop Slapproxy server"""
-  sup_process.stopProcess(config, "slapproxy")
+  return sup_process.stopProcess(config, "slapproxy")
 
 
 def removeProxyDb(config):
@@ -277,33 +278,55 @@ def waitProcess(config, process, step):
   date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
   slapgridResultToFile(config, step, process.returncode, date)
 
+def runSlapgridWithLock(config, step, process_name, lock=False):
+  """
+  * process_name is the name of the process given to supervisord, which will
+    run the software or the instance
+  * step is one of ('software', 'instance')
+  * lock allows to make this function asynchronous or not
+  """
+  if sup_process.isRunning(config, process_name):
+    return 1
+
+  root_folder = config["%s_root" % step]
+  log_file = config["%s_log" % step]
+
+  if not os.path.exists(root_folder):
+    os.mkdir(root_folder)
+
+  # XXX Hackish and unreliable
+  if os.path.exists(log_file):
+    os.remove(log_file)
+  if not updateProxy(config):
+    return 1
+  if step == 'instance' and not requestInstance(config):
+    return 1
+  try:
+    sup_process.runProcess(config, process_name)
+    if lock:
+      sup_process.waitForProcessEnd(config, process_name)
+    #Saves the current compile software for re-use
+    if step == 'software':
+      config_SR_folder(config)
+    return sup_process.returnCode(config, process_name)
+  except xmlrpclib.Fault:
+    return 1
+
 
 def runSoftwareWithLock(config, lock=False):
   """
     Use Slapgrid to compile current Software Release and wait until
     compilation is done
   """
-  if sup_process.isRunning(config, 'slapgrid-sr'):
-    return 1
+  return runSlapgridWithLock(config, 'software', 'slapgrid-sr', lock)
 
-  if not os.path.exists(config['software_root']):
-    os.mkdir(config['software_root'])
-  stopProxy(config)
-  startProxy(config)
-  # XXX Hackish and unreliable
-  if os.path.exists(config['software_log']):
-    os.remove(config['software_log'])
-  if not updateProxy(config):
-    return 1
-  try:
-    sup_process.runProcess(config, "slapgrid-sr")
-    if lock:
-      sup_process.waitForProcessEnd(config, "slapgrid-sr")
-    #Saves the current compile software for re-use
-    config_SR_folder(config)
-    return sup_process.returnCode(config, "slapgrid-sr")
-  except xmlrpclib.Fault:
-    return 1
+
+def runInstanceWithLock(config, lock=False):
+  """
+    Use Slapgrid to deploy current Software Release and wait until
+    deployment is done.
+  """
+  return runSlapgridWithLock(config, 'instance', 'slapgrid-cp', lock)
 
 
 def config_SR_folder(config):
@@ -374,29 +397,6 @@ def isInstanceRunning(config):
   return sup_process.isRunning(config, 'slapgrid-cp')
 
 
-def runInstanceWithLock(config, lock=False):
-  """
-    Use Slapgrid to deploy current Software Release and wait until
-    deployment is done.
-  """
-  if sup_process.isRunning(config, 'slapgrid-cp'):
-    return 1
-
-  startProxy(config)
-  # XXX Hackish and unreliable
-  if os.path.exists(config['instance_log']):
-    os.remove(config['instance_log'])
-  if not (updateProxy(config) and requestInstance(config)):
-    return 1
-  try:
-    sup_process.runProcess(config, "slapgrid-cp")
-    if lock:
-      sup_process.waitForProcessEnd(config, "slapgrid-cp")
-    return sup_process.returnCode(config, "slapgrid-cp")
-  except xmlrpclib.Fault:
-    return 1
-
-
 def getProfilePath(projectDir, profile):
   """
   Return the path of the current Software Release `profile`
@@ -450,10 +450,9 @@ def svcStartAll(config):
   except:
     pass
 
-def removeInstanceRoot(config):
-  """Clean instance directory and stop all its running processes"""
+def removeInstanceRootDirectory(config):
+  """Clean instance directory"""
   if os.path.exists(config['instance_root']):
-    svcStopAll(config)
     for instance_directory in os.listdir(config['instance_root']):
       instance_directory = os.path.join(config['instance_root'], instance_directory)
       # XXX: hardcoded
@@ -467,6 +466,27 @@ def removeInstanceRoot(config):
             # Some directories may be read-only, preventing to remove files in it
             os.chmod(fullPath, 0744)
       shutil.rmtree(instance_directory)
+
+def removeCurrentInstance(config):
+  if isInstanceRunning(config):
+    return "Instantiation in progress, cannot remove instance"
+
+  # Stop all processes
+  svcStopAll(config)
+  if stopProxy(config):
+    removeProxyDb(config)
+  else:
+    return "Something went wrong when trying to stop slapproxy."
+
+  # Remove Instance directory and data related to the instance
+  try:
+    removeInstanceRootDirectory(config)
+    param_path = os.path.join(config['etc_dir'], ".parameter.xml")
+    if os.path.exists(param_path):
+      os.remove(param_path)
+  except IOError:
+    return "The filesystem couldn't been cleaned properly"
+  return True
 
 
 def getSvcStatus(config):
@@ -545,13 +565,7 @@ def configNewSR(config, projectpath):
   if folder:
     sup_process.stopProcess(config, 'slapgrid-cp')
     sup_process.stopProcess(config, 'slapgrid-sr')
-    stopProxy(config)
-    removeProxyDb(config)
-    startProxy(config)
-    removeInstanceRoot(config)
-    param_path = os.path.join(config['etc_dir'], ".parameter.xml")
-    if os.path.exists(param_path):
-      os.remove(param_path)
+    removeCurrentInstance(config)
     open(os.path.join(config['etc_dir'], ".project"), 'w').write(projectpath)
     return True
   else:
@@ -573,8 +587,8 @@ def newSoftware(folder, config, session):
     folderPath = realpath(config, folder, check_exist=False)
     if folderPath and not os.path.exists(folderPath):
       os.mkdir(folderPath)
-      #load software.cfg and instance.cfg from http://git.erp5.org
-      software = "http://git.erp5.org/gitweb/slapos.git/blob_plain/HEAD:/software/lamp-template/software.cfg"
+      #load software.cfg and instance.cfg from https://lab.nexedi.com
+      software = "https://lab.nexedi.com/nexedi/slapos/raw/master/software/lamp-template/software.cfg"
       softwareContent = ""
       try:
         softwareContent = urllib.urlopen(software).read()
@@ -589,7 +603,7 @@ def newSoftware(folder, config, session):
       removeProxyDb(config)
       startProxy(config)
       #Stop runngin process and remove existing instance
-      removeInstanceRoot(config)
+      removeCurrentInstance(config)
       session['title'] = getProjectTitle(config)
       code = 1
     else:
@@ -632,27 +646,47 @@ def getSoftwareReleaseName(config):
     return software.replace(' ', '_')
   return "No_name"
 
-
-def removeSoftwareByName(config, md5, folderName):
-  """Remove all content of the software release specified by md5
+def removeSoftwareRootDirectory(config, md5, folder_name):
+  """
+  Removes all content in the filesystem of the software release specified by md5
 
   Args:
     config: slaprunner configuration
-    foldername: the link name given to the software release
-    md5: the md5 filename given by slapgrid to SR folder"""
-  if isSoftwareRunning(config) or isInstanceRunning(config):
-    raise Exception("Software installation or instantiation in progress, cannot remove")
+    folder_name: the link name given to the software release
+    md5: the md5 filename given by slapgrid to SR folder
+  """
   path = os.path.join(config['software_root'], md5)
-  linkpath = os.path.join(config['software_link'], folderName)
+  linkpath = os.path.join(config['software_link'], folder_name)
   if not os.path.exists(path):
-    raise Exception("Cannot remove software Release: No such file or directory")
+    return (0, "Cannot remove software Release: No such file or directory")
   if not os.path.exists(linkpath):
-    raise Exception("Cannot remove software Release: No such file or directory %s" %
-                    ('software_root/' + folderName))
-  svcStopAll(config)
+    return (0, "Cannot remove software Release: No such file or directory %s" %
+                    ('software_root/' + folder_name))
   os.unlink(linkpath)
   shutil.rmtree(path)
-  return loadSoftwareRList(config)
+  return
+
+def removeSoftwareByName(config, md5, folder_name):
+  """
+  Removes a software release specified by its md5 and its name from the webrunner.
+  If the software release is the one of the current running instance, then
+  the instance should be stopped.
+
+  Args:
+    config: slaprunner configuration
+    folder_name: the link name given to the software release
+    md5: the md5 filename given by slapgrid to SR folder
+  """
+  if isSoftwareRunning(config) or isInstanceRunning(config):
+    return (0, "Software installation or instantiation in progress, cannot remove")
+
+  if getSoftwareReleaseName(config) == folder_name:
+    removeCurrentInstance(config)
+
+  result = removeSoftwareRootDirectory(config, md5, folder_name)
+  if result is not None:
+    return result
+  return 1, loadSoftwareRList(config)
 
 
 def tail(f, lines=20):
@@ -761,16 +795,11 @@ def realpath(config, path, check_exist=True):
   """
   split_path = path.split('/')
   key = split_path[0]
-  allow_list = {
-    'software_root': config['software_root'],
-    'instance_root': config['instance_root'],
-    'workspace': config['workspace'],
-    'runner_workdir': config['runner_workdir'],
-    'software_link': config['software_link']
-  }
-  if key not in allow_list:
+  virtual_path_list = ('software_root', 'instance_root', 'workspace',
+    'runner_workdir', 'software_link')
+  if key not in virtual_path_list:
     return ''
-
+  allow_list = {path: config[path] for path in virtual_path_list if path in config}
   del split_path[0]
   path = os.path.join(allow_list[key], *split_path)
   if check_exist:
@@ -811,8 +840,10 @@ def isSoftwareReleaseReady(config):
   """Return 1 if the Software Release has
   correctly been deployed, 0 if not,
   and 2 if it is currently deploying"""
-  auto_deploy = config['auto_deploy'] in TRUE_VALUES
-  auto_run = config['autorun'] in TRUE_VALUES
+  slapos_software = (False if config.get('slapos-software', None) is None else True)
+  # auto_deploy and auto_run are True only if slapos_software has been declared
+  auto_deploy = (config['auto_deploy'] in TRUE_VALUES) and slapos_software
+  auto_run = (config['autorun'] in TRUE_VALUES) and slapos_software
   project = os.path.join(config['etc_dir'], '.project')
   if not ( os.path.exists(project) and (auto_run or auto_deploy) ):
     return "0"
