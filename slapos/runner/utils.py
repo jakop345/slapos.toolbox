@@ -840,8 +840,10 @@ def isSoftwareReleaseReady(config):
   """Return 1 if the Software Release has
   correctly been deployed, 0 if not,
   and 2 if it is currently deploying"""
-  auto_deploy = config['auto_deploy'] in TRUE_VALUES
-  auto_run = config['autorun'] in TRUE_VALUES
+  slapos_software = (False if config.get('slapos-software', None) is None else True)
+  # auto_deploy and auto_run are True only if slapos_software has been declared
+  auto_deploy = (config['auto_deploy'] in TRUE_VALUES) and slapos_software
+  auto_run = (config['autorun'] in TRUE_VALUES) and slapos_software
   project = os.path.join(config['etc_dir'], '.project')
   if not ( os.path.exists(project) and (auto_run or auto_deploy) ):
     return "0"
