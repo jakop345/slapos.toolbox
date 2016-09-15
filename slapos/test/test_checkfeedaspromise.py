@@ -118,5 +118,13 @@ class TestCheckFeedAsPromise(unittest.TestCase):
     self.assertNotEquals(len(checkFeedAsPromise(feed, option)), 0)
 
 
+  def test_noItemInTheFeedIsNotAnError(self):
+    option = self.getOptionObject()
+    option.title = True
+    
+    feed = self.generateFeed([])
+    self.assertEquals(checkFeedAsPromise(feed, option), "")
+
+
 if __name__ == '__main__':
   unittest.main()

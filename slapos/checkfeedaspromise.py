@@ -43,6 +43,9 @@ def checkFeedAsPromise(feed, option):
   if feed.bozo:
     return 'Feed malformed'
 
+  if len(feed.entries) == 0:
+    return ''
+
   last_item = feed.entries[-1]
   if option.title:
     candidate_string = last_item.title
