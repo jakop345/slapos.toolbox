@@ -1,3 +1,17 @@
+0.59 (2016-09-16)
+=================
+
+* runner: add tests
+* Add scripts to generate RSS feeds and to create promises on RSS feeds
+* notifier: new arguments to generate verobose logging
+
+0.58 (2016-09-07)
+=================
+
+* monitor: multiple fixes and improvements
+* resilient: fix tests
+* agent: fix console script
+
 0.57 (2016-08-09)
 =================
 
