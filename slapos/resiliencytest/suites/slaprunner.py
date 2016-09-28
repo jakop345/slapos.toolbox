@@ -214,7 +214,7 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
     Wait for instance to be started.
     Store the main IP of the slaprunner for future use.
     """
-    self.logger.debug('Getting the backend URL and recovery code...')
+    self.logger.debug('Getting the backend URL...')
     parameter_dict = self._getPartitionParameterDict()
     self.slaprunner_backend_url = parameter_dict['backend-url']
     self.logger.info('backend_url is %s.' % self.slaprunner_backend_url)

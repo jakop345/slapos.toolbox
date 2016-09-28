@@ -190,22 +190,12 @@ class ERP5TestSuite(SlaprunnerTestSuite):
     Store the main IP of the slaprunner for future use.
     """
 
-    self.logger.debug('Getting the backend URL and recovery code...')
+    self.logger.debug('Getting the backend URL...')
     parameter_dict = self._getPartitionParameterDict()
-    self.slaprunner_backend_url = parameter_dict['backend_url']
+    self.slaprunner_backend_url = parameter_dict['backend-url']
     self.logger.info('backend_url is %s.' % self.slaprunner_backend_url)
-    self.monitor_url = parameter_dict['monitor_backend_url']
-    slaprunner_recovery_code = self._getRcode()
-
-    self.logger.debug('Creating the slaprunner account...')
-    self._connectToSlaprunner(
-        resource='configAccount',
-        data='name=slapos&username=%s&email=slapos@slapos.org&password=%s&rcode=%s' % (
-            self.slaprunner_user,
-            self.slaprunner_password,
-            slaprunner_recovery_code
-        )
-    )
+    self.slaprunner_user = parameter_dict['init-user']
+    self.slaprunner_password = parameter_dict['init-password']
 
     self._login()
     time.sleep(10)
