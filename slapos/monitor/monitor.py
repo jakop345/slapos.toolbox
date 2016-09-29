@@ -75,7 +75,7 @@ class Monitoring(object):
     self.crond_folder = config.get("monitor", "crond-folder")
     self.logrotate_d = config.get("monitor", "logrotate-folder")
     self.promise_runner = config.get("monitor", "promise-runner")
-    self.promise_folder_list = config.get("monitor", "promise-folder-list").split()
+    self.promise_folder = config.get("monitor", "promise-folder")
     self.public_folder = config.get("monitor", "public-folder")
     self.private_folder = config.get("monitor", "private-folder")
     self.collector_db  = config.get("monitor", "collector-db")
@@ -97,10 +97,6 @@ class Monitoring(object):
 
     self.promise_output_file = config.get("monitor", "promise-output-file")
     self.bootstrap_is_ok = True
-
-    self.promise_dict = {}
-    for promise_folder in self.promise_folder_list:
-      self.setupPromiseDictFromFolder(promise_folder)
 
   def loadConfig(self, pathes, config=None):
     if config is None:
@@ -181,13 +177,6 @@ class Monitoring(object):
             print 'Cannot read file at %s, Error is: %s' % (old_cors_file, str(e))
             pass
     return configuration_list
-
-  def setupPromiseDictFromFolder(self, folder):
-    for filename in os.listdir(folder):
-      path = os.path.join(folder, filename)
-      if os.path.isfile(path) and os.access(path, os.X_OK):
-        self.promise_dict[filename] = {"path": path,
-                                  "configuration": ConfigParser.ConfigParser()}
 
   def createSymlinksFromConfig(self, destination_folder, source_path_list, name=""):
     if destination_folder:
@@ -406,37 +395,30 @@ class Monitoring(object):
 
   def generateServiceCronEntries(self):
     # XXX only if at least one configuration file is modified, then write in the cron
-    #cron_line_list = ['PATH=%s\n' % os.environ['PATH']]
-    cron_line_list = []
 
     service_name_list = [name.replace('.status.json', '')
       for name in os.listdir(self.public_folder) if name.endswith('.status.json')]
 
-    for service_name, promise in self.promise_items:
-      service_config = promise["configuration"]
-      service_status_path = "%s/%s.status.json" % (self.public_folder, service_name)
-      mkdirAll(os.path.dirname(service_status_path))
+    promise_cmd_line = [
+      "* * * * *",
+      "sleep $((1 + RANDOM % 30)) &&", # Sleep between 1 to 30 seconds
+      self.promise_runner,
+      '--pid_path "%s"' % os.path.join(self.service_pid_folder,
+        "monitor-promises.pid"),
+      '--output "%s"' % self.public_folder,
+      '--promise_folder "%s"' % self.promise_folder,
+      '--monitor_url "%s/jio_private/"' % self.webdav_url, # XXX hardcoded,
+      '--history_folder "%s"' % self.public_folder,
+      '--instance_name "%s"' % self.title,
+      '--hosting_name "%s"' % self.root_title]
 
-      promise_cmd_line = [
-        softConfigGet(service_config, "service", "frequency") or "* * * * *",
-        self.promise_runner,
-        '--pid_path "%s"' % os.path.join(self.service_pid_folder,
-          "%s.pid" % service_name),
-        '--output "%s"' % service_status_path,
-        '--promise_script "%s"' % promise["path"],
-        '--promise_name "%s"' % service_name,
-        '--monitor_url "%s/jio_private/"' % self.webdav_url, # XXX hardcoded,
-        '--history_folder "%s"' % self.public_folder,
-        '--instance_name "%s"' % self.title,
-        '--hosting_name "%s"' % self.root_title]
-
-      cron_line_list.append(' '.join(promise_cmd_line))
-
-      if service_name in service_name_list:
+    registered_promise_list = os.listdir(self.promise_folder)
+    for service_name in service_name_list:
+      if service_name in registered_promise_list:
         service_name_list.pop(service_name_list.index(service_name))
 
     if service_name_list != []:
-      # XXX Some service was removed, delete his status file so monitor will not consider his status anymore
+      # XXX Some service was removed, delete his status file so monitor will not consider the status anymore
       for service_name in service_name_list:
         status_path = os.path.join(self.public_folder, '%s.status.json' % service_name)
         if os.path.exists(status_path):
@@ -447,7 +429,7 @@ class Monitoring(object):
             pass
 
     with open(self.crond_folder + "/monitor-promises", "w") as fp:
-      fp.write("\n".join(cron_line_list))
+      fp.write(' '.join(promise_cmd_line))
 
   def addCronEntry(self, name, frequency, command):
     entry_line = '%s %s' % (frequency, command)
@@ -465,21 +447,6 @@ class Monitoring(object):
     self.createSymlinksFromConfig(self.private_folder, self.private_path_list)
 
     self.configureFolders()
-
-    # create symlinks from service configurations
-    self.promise_items = self.promise_dict.items()
-    for service_name, promise in self.promise_items:
-      service_config = promise["configuration"]
-      public_path_list = softConfigGet(service_config, "service", "public-path-list")
-      private_path_list = softConfigGet(service_config, "service", "private-path-list")
-      if public_path_list:
-        self.createSymlinksFromConfig(self.public_folder,
-                                      public_path_list.split(),
-                                      service_name)
-      if private_path_list:
-        self.createSymlinksFromConfig(self.private_folder,
-                                      private_path_list.split(),
-                                      service_name)
 
     # Generate OPML file
     self.generateOpmlFile(self.monitor_url_list,
@@ -514,7 +481,8 @@ class Monitoring(object):
     self.generateLogrotateEntry('monitor.service.status', file_list, option_list)
 
     # Add cron entry for SlapOS Collect
-    command = "%s %s --output_folder %s --collector_db %s" % (self.python,
+    command = "sleep $((1 + RANDOM % 60)) && " # Random sleep between 1 to 60 seconds
+    command += "%s %s --output_folder %s --collector_db %s" % (self.python,
       self.collect_script, self.data_folder, self.collector_db)
     self.addCronEntry('monitor_collect', '* * * * *', command)
 
