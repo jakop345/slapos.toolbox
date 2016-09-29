@@ -91,6 +91,7 @@ class Monitoring(object):
     self.parameter_list = [param.strip() for param in config.get("monitor", "parameter-list").split('\n') if param]
     # Use this file to write knowledge0_cfg required by webrunner
     self.parameter_cfg_file = config.get("monitor", "parameter-file-path").strip()
+    self.pid_file = config.get("monitor", "pid-file")
 
     self.config_folder = os.path.join(self.private_folder, 'config')
     self.report_folder = self.private_folder
@@ -208,6 +209,7 @@ class Monitoring(object):
         response = urllib2.urlopen(url)
     except urllib2.HTTPError:
       self.bootstrap_is_ok = False
+      print "Error: Failed to get Monitor configuration at %s " % monitor_url
       return 'Unknown Instance'
     else:
       try:
@@ -441,6 +443,10 @@ class Monitoring(object):
 
     if os.path.exists(self.promise_output_file):
       os.unlink(self.promise_output_file)
+
+    # save pid of current process into file
+    with open(self.pid_file, 'w') as pid_file:
+      pid_file.write(str(os.getpid()))
 
     # create symlinks from monitor.conf
     self.createSymlinksFromConfig(self.public_folder, self.public_path_list)
