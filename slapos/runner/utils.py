@@ -644,7 +644,7 @@ def getSoftwareReleaseName(config):
     project = open(sr_profile, "r").read().split("/")
     software = project[-2]
     return software.replace(' ', '_')
-  return "No_name"
+  return None
 
 def removeSoftwareRootDirectory(config, md5, folder_name):
   """
@@ -835,27 +835,29 @@ def readParameters(path):
   else:
     return "No such file or directory: %s" % path
 
+def isSoftwareReleaseCompleted(config):
+  software_name = getSoftwareReleaseName(config)
+  if software_name is None:
+    return False
+  elif os.path.exists(os.path.join(config['runner_workdir'],
+      'softwareLink', software_name, '.completed')):
+    return True
+  else:
+    return False
 
 def isSoftwareReleaseReady(config):
   """Return 1 if the Software Release has
   correctly been deployed, 0 if not,
   and 2 if it is currently deploying"""
-  slapos_software = (False if config.get('slapos-software', None) is None else True)
+  slapos_software = config.get('slapos-software', None) is not None
   # auto_deploy and auto_run are True only if slapos_software has been declared
   auto_deploy = (config['auto_deploy'] in TRUE_VALUES) and slapos_software
   auto_run = (config['autorun'] in TRUE_VALUES) and slapos_software
   project = os.path.join(config['etc_dir'], '.project')
   if not ( os.path.exists(project) and (auto_run or auto_deploy) ):
     return "0"
-  path = open(project, 'r').readline().strip()
-  software_name = path
-  if software_name[-1] == '/':
-    software_name = software_name[:-1]
-  software_name = software_name.split('/')[-1]
   updateInstanceParameter(config)
-  config_SR_folder(config)
-  if os.path.exists(os.path.join(config['runner_workdir'],
-      'softwareLink', software_name, '.completed')):
+  if isSoftwareReleaseCompleted(config):
     if auto_run:
       runSlapgridUntilSuccess(config, 'instance')
     return "1"
@@ -864,8 +866,6 @@ def isSoftwareReleaseReady(config):
       return "2"
     elif auto_deploy:
       runSoftwareWithLock(config)
-      config_SR_folder(config)
-      time.sleep(15)
       if auto_run:
         runSlapgridUntilSuccess(config, 'instance')
       return "2"

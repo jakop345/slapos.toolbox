@@ -92,11 +92,13 @@ class TestRunnerBackEnd(unittest.TestCase):
 
   @mock.patch('os.mkdir')
   @mock.patch('slapos.runner.utils.updateProxy')
+  @mock.patch('slapos.runner.utils.requestInstance')
   @mock.patch('slapos.runner.utils.config_SR_folder')
   def _runSlapgridWithLockMakesCorrectCallsToSupervisord(self,
                                                          run_slapgrid_function,
                                                          process_name,
                                                          mock_configSRFolder,
+                                                         mock_requestInstance,
                                                          mock_updateProxy,
                                                          mock_mkdir):
     """
@@ -105,7 +107,8 @@ class TestRunnerBackEnd(unittest.TestCase):
     """
     mock_updateProxy.return_value = True
     cwd = os.getcwd()
-    config = {'software_root': os.path.join(cwd, 'software'),
+    config = {'etc_dir': cwd,
+              'software_root': os.path.join(cwd, 'software'),
               'software_log': os.path.join(cwd, 'software.log'),
               'instance_root': os.path.join(cwd, 'software'),
               'instance_log': os.path.join(cwd, 'software.log')}
@@ -295,6 +298,67 @@ class TestRunnerBackEnd(unittest.TestCase):
                      build_and_run_parameter_dict['max_run_software'])
     # if running software fails, then no need to try to deploy instances
     self.assertEqual(mock_runInstanceWithLock.call_count, 0)
+
+  @mock.patch('os.path.exists')
+  @mock.patch('slapos.runner.utils.updateInstanceParameter')
+  @mock.patch('slapos.runner.utils.isSoftwareReleaseCompleted')
+  @mock.patch('slapos.runner.utils.runSlapgridUntilSuccess')
+  @mock.patch('slapos.runner.utils.isSoftwareRunning')
+  @mock.patch('slapos.runner.utils.runSoftwareWithLock')
+  def test_isSoftwareReleaseReady(self,
+                                  mock_runSoftwareWithLock,
+                                  mock_isSoftwareRunning,
+                                  mock_runSlapgridUntilSuccess,
+                                  mock_isSoftwareReleaseCompleted,
+                                  mock_updateInstanceParameter,
+                                  mock_path_exists):
+    cwd = os.getcwd()
+    config = {
+      'etc_dir': cwd,
+      'runner_workdir': cwd,
+      'slapos-software': 'slapos/dummy',
+      'auto_deploy': False,
+      'autorun': False,
+    }
+    # Every parameter is False, so do nothing
+    self.assertEqual(runner_utils.isSoftwareReleaseReady(config), '0')
+
+    # We define a software, so from now we expect to build
+    mock_path_exists.return_value = True
+
+    # auto_deploy is True, so Software Release should build
+    config.update({
+      'auto_deploy': True,
+    })
+
+    # slapgrid-sr is running
+    mock_isSoftwareRunning.return_value = True
+    mock_isSoftwareReleaseCompleted.return_value = False
+    self.assertEqual(runner_utils.isSoftwareReleaseReady(config), '2')
+    
+    # SR is not built, and slapgrid-sr is not running, so it should be started
+    mock_isSoftwareRunning.return_value = False
+    mock_isSoftwareReleaseCompleted.return_value = False
+
+    self.assertEqual(runner_utils.isSoftwareReleaseReady(config), '2')
+    self.assertTrue(mock_runSoftwareWithLock.called)
+
+    mock_runSoftwareWithLock.reset_mock()
+
+    # SR is built
+    mock_isSoftwareReleaseCompleted.return_value = True
+    self.assertEqual(runner_utils.isSoftwareReleaseReady(config), '1')
+
+    # If autorun is True, Instance is expected to build too
+    config.update({
+      'autorun': True,
+    })
+    mock_isSoftwareRunning.return_value = False
+    mock_isSoftwareReleaseCompleted.return_value = True
+
+    self.assertEqual(runner_utils.isSoftwareReleaseReady(config), '1')
+    mock_runSlapgridUntilSuccess.assert_called_with(config, 'instance')
+
 
   @unittest.skip('No scenario defined')
   def test_autoDeployWontEraseExistingInstances(self):
