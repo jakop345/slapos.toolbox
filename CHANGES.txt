@@ -1,3 +1,9 @@
+0.60 (2016-10-05)
+=================
+
+* monitor: write pid to file while processing 
+* monitor: run all promises in a single crontask with timeout of 12 seconds per promises.
+
 0.59 (2016-09-16)
 =================
 
