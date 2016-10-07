@@ -87,7 +87,7 @@ class TestGenerateFeed(unittest.TestCase):
 
   def test_generateFeedCleanStatusDirectoryIfTooManyItems(self):
     option = self.getOptionObject()
-    option.max_item = 10
+    option.max_item = 3
 
     # Creates items more than allowed
     item_dummy_content = {
@@ -96,9 +96,11 @@ class TestGenerateFeed(unittest.TestCase):
       'pubDate': time.mktime(datetime.datetime.now().timetuple()),
       'title': 'dummy title',
     }
-    for i in range(15):
+    for i in range(5):
       filename = '%s.item' % i
       self.saveAsStatusItem(filename, item_dummy_content)
+      time.sleep(1)
+      item_dummy_content['pubDate'] = time.mktime(datetime.datetime.now().timetuple())
 
     content_feed = generateFeed(option)
     feed = feedparser.parse(content_feed)
@@ -110,6 +112,16 @@ class TestGenerateFeed(unittest.TestCase):
 
     # Status item directory should have been cleaned
     self.assertEqual(len(os.listdir(self.item_directory)), option.max_item)
+
+    # Only "younger" items should still be there
+    remaining_status_item_list = os.listdir(self.item_directory)
+    expected_remaining_item_list = []
+
+    for i in range(5-3, 5): # older items (from 1 to 2) have been deleted
+      expected_remaining_item_list.append('%s.item' % i)
+
+    self.assertItemsEqual(remaining_status_item_list,
+                          expected_remaining_item_list)
 
 if __name__ == '__main__':
   unittest.main()

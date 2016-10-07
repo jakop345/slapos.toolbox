@@ -71,7 +71,7 @@ def generateFeed(option):
 
   # Reduces feed if number of items exceeds max_item
   if len(item_dict) > option.max_item:
-    outdated_key_list = sorted_item_dict.keys()[option.max_item:]
+    outdated_key_list = sorted_item_dict.keys()[:-option.max_item]
     for outdated_key in outdated_key_list:
       del sorted_item_dict[outdated_key]
     deleteFileList(outdated_key_list)
