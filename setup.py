@@ -58,7 +58,6 @@ setup(name=name,
       },
       tests_require = [
         'mock',
-        'pycurl',
       ],
       zip_safe=False, # proxy depends on Flask, which has issues with
                       # accessing templates
