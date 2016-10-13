@@ -41,7 +41,10 @@ def checkFeedAsPromise(feed, option):
   feed = feedparser.parse(feed)
 
   if feed.bozo:
-    return 'Feed malformed'
+    return 'Feed malformed : %s (at line %s)' % (
+      feed.bozo_exception.getMessage(),
+      feed.bozo_exception.getLineNumber(),
+    )
 
   if len(feed.entries) == 0:
     return ''
@@ -77,7 +80,7 @@ def checkFeedAsPromise(feed, option):
       return ''
     else:
       # If time-buffer is out, we are in stalled state
-      return 'Stalled situation'
+      return 'Stalled situation : Nothing happened since %s' % publication_date
 
   # If not ok, and not stalled, what can have possibly happen ?
   return 'Something went wrong'
