@@ -160,9 +160,6 @@ class ResiliencyTestSuite(object):
     Private method.
     Launch takeover and check for a specific clone.
     """
-    self._doTakeover(self.namebase, clone)
-    self.logger.info('Testing %s%s instance.' % (self.namebase, clone))
-
     # Wait for XX minutes so that replication is done
     self.logger.info(
       'Sleeping for %s seconds before testing clone %s.' % (
@@ -170,6 +167,9 @@ class ResiliencyTestSuite(object):
           clone
         ))
     time.sleep(self.sleep_time_between_test)
+
+    self.logger.info('Testing %s%s instance.' % (self.namebase, clone))
+    self._doTakeover(self.namebase, clone)
 
     if self.test_type == UNIT_TEST_ERP5TESTNODE: # Run by classical erp5testnode using slapproxy
       # Run manually slapos node instance
