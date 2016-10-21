@@ -28,6 +28,8 @@ def parseArguments():
                       help='Promise script to execute.')
   parser.add_argument('--promise_folder',
                       help='Folder where to find promises to execute. Hide --promise_script and --promise_name')
+  parser.add_argument('--monitor_promise_folder',
+                      help='Folder where to find Custom monitor promises to execute.')
   parser.add_argument('--promise_name',
                       help='Title to give to this promise.')
   parser.add_argument('--promise_type',
@@ -118,7 +120,10 @@ class RunPromise(object):
     with open(self.config.pid_path, 'w') as fpid:
       fpid.write(str(os.getpid()))
 
-    status_list = self.checkPromises(self.config.promise_folder)
+    promise_folder_list = [self.config.promise_folder]
+    if self.config.monitor_promise_folder:
+      promise_folder_list.append(self.config.monitor_promise_folder)
+    status_list = self.checkPromises(promise_folder_list)
     promises_status_file = os.path.join(self.config.output, '_promise_status')
     previous_state_dict = {}
     new_state_dict = {}
@@ -254,19 +259,22 @@ class RunPromise(object):
       stderr=subprocess.PIPE
     )
 
-  def checkPromises(self, promise_dir):
+  def checkPromises(self, promise_dir_list):
     """
       Run all promises found into specified folder
     """
-    if not os.path.exists(promise_dir) or not os.path.isdir(promise_dir):
-      return []
+    promise_list = []
+    for promise_dir in promise_dir_list:
+      if not os.path.exists(promise_dir) or not os.path.isdir(promise_dir):
+        continue
+      promise_list.extend([os.path.join(promise_dir, promise)
+                            for promise in os.listdir(promise_dir)])
 
     promise_result_list = []
 
     # Check whether every promise is kept
-    for promise in os.listdir(promise_dir):
+    for promise_script in promise_list:
 
-      promise_script = os.path.join(promise_dir, promise)
       if not os.path.isfile(promise_script) or not os.access(promise_script, os.X_OK):
         # Not executable file
         continue
@@ -300,7 +308,10 @@ class RunPromise(object):
           result_dict["message"] = process_handler.communicate()[0]
           result_dict["status"] = "OK"
         else:
-          result_dict["message"] = process_handler.communicate()[1]
+          stdout, stderr = process_handler.communicate()
+          result_dict["message"] = stderr
+          if not stderr:
+            result_dict["message"] = stdout
         break
       else:
         process_handler.terminate()

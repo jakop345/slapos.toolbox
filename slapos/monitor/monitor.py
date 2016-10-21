@@ -92,6 +92,8 @@ class Monitoring(object):
     # Use this file to write knowledge0_cfg required by webrunner
     self.parameter_cfg_file = config.get("monitor", "parameter-file-path").strip()
     self.pid_file = config.get("monitor", "pid-file")
+    self.monitor_promise_folder = softConfigGet(config, "monitor",
+                                                "monitor-promise-folder")
 
     self.config_folder = os.path.join(self.private_folder, 'config')
     self.report_folder = self.private_folder
@@ -409,6 +411,7 @@ class Monitoring(object):
         "monitor-promises.pid"),
       '--output "%s"' % self.public_folder,
       '--promise_folder "%s"' % self.promise_folder,
+      '--monitor_promise_folder "%s"' % self.monitor_promise_folder,
       '--monitor_url "%s/jio_private/"' % self.webdav_url, # XXX hardcoded,
       '--history_folder "%s"' % self.public_folder,
       '--instance_name "%s"' % self.title,
