@@ -13,6 +13,7 @@ class MonitorBootstrapTest(unittest.TestCase):
   def setUp(self):
     self.base_dir = tempfile.mkdtemp()
     os.mkdir(os.path.join(self.base_dir, 'promise'))
+    os.mkdir(os.path.join(self.base_dir, 'monitor-promise'))
     os.mkdir(os.path.join(self.base_dir, 'public'))
     os.mkdir(os.path.join(self.base_dir, 'private'))
     os.mkdir(os.path.join(self.base_dir, 'cron.d'))
@@ -25,13 +26,17 @@ class MonitorBootstrapTest(unittest.TestCase):
     self.writeContent(os.path.join(self.base_dir, 'test-httpd-cors.cfg'), '')
     self.writeContent(os.path.join(self.base_dir, 'monitor-htpasswd'), '12345')
     self.monitor_config_file = os.path.join(self.base_dir, 'monitor.conf')
-    
+
     self.monitor_config_dict = dict(
       base_dir=self.base_dir,
       root_title="Monitor ROOT",
       title="Monitor",
       url_list="",
       base_url="https://monitor.test.com",
+      monitor_promise_folder=os.path.join(self.base_dir, 'monitor-promise'),
+      promise_folder=os.path.join(self.base_dir, 'promise'),
+      promise_runner_pid=os.path.join(self.base_dir, 'run', 'monitor-promises.pid'),
+      public_folder=os.path.join(self.base_dir, 'public'),
       public_path_list="",
       private_path_list="",
       promise_run_script="/bin/echo",
@@ -39,7 +44,9 @@ class MonitorBootstrapTest(unittest.TestCase):
     )
     self.monitor_conf = """[monitor]
 parameter-file-path = %(base_dir)s/knowledge0.cfg
-promise-folder-list = %(base_dir)s/promise
+promise-folder = %(base_dir)s/promise
+service-pid-folder = %(base_dir)s/run
+monitor-promise-folder = %(base_dir)s/monitor-promise
 private-folder = %(base_dir)s/private
 public-folder = %(base_dir)s/public
 public-path-list = %(public_path_list)s
@@ -48,6 +55,7 @@ crond-folder = %(base_dir)s/cron.d
 logrotate-folder = %(base_dir)s/logrotate.d
 report-folder = %(base_dir)s/monitor-report
 root-title = %(root_title)s
+pid-file =  %(base_dir)s/monitor.pid
 parameter-list = 
   raw monitor-user admin
   file sample %(base_dir)s/param
@@ -105,25 +113,30 @@ promise-runner = %(promise_run_script)s
           base_url=url)
       self.assertTrue(opml_outline in opml_content)
 
-  def check_promises(self):
-    promise_entry = '* * * * * %(promise_run_script)s --pid_path "%(promise_pid)s" --output "%(promise_output)s" --promise_script "%(promise_executable)s" --promise_name "%(promise_name)s" --monitor_url "%(base_url)s/share/jio_private/" --history_folder "%(base_dir)s/public" --instance_name "%(title)s" --hosting_name "%(root_title)s"'
-    promise_dir = os.path.join(self.base_dir, 'promise')
-
+  def check_promises(self, sequential=False):
     promise_cron = os.path.join(self.base_dir, 'cron.d', 'monitor-promises')
     self.assertTrue(os.path.exists(promise_cron))
     with open(promise_cron) as cronf:
       promise_command_list = cronf.read()
 
-    for filename in os.listdir(promise_dir):
-      promise_dict = dict(
-        promise_pid=os.path.join(self.base_dir, 'run', '%s.pid' % filename),
-        promise_output=os.path.join(self.base_dir, 'public', '%s.status.json' % filename),
-        promise_executable=os.path.join(promise_dir, filename),
-        promise_name=filename
-      )
-      promise_dict.update(self.monitor_config_dict)
-      entry_line = promise_entry % promise_dict
+    if not sequential:
+      promise_entry = '* * * * * sleep $((1 + RANDOM %% 30)) && %(promise_run_script)s --pid_path "%(promise_runner_pid)s" --output "%(public_folder)s" --promise_folder "%(promise_folder)s" --monitor_promise_folder "%(monitor_promise_folder)s" --monitor_url "%(base_url)s/share/jio_private/" --history_folder "%(base_dir)s/public" --instance_name "%(title)s" --hosting_name "%(root_title)s"'
+      entry_line = promise_entry % self.monitor_config_dict
       self.assertTrue(entry_line in promise_command_list)
+    else:
+      promise_entry = '* * * * * sleep $((1 + RANDOM %% 30)) &&%(promise_run_script)s --pid_path "%(promise_pid)s" --output "%(promise_output)s" --promise_script "%(promise_executable)s" --promise_name "%(promise_name)s" --monitor_url "%(base_url)s/share/jio_private/" --history_folder "%(base_dir)s/public" --instance_name "%(title)s" --hosting_name "%(root_title)s"'
+    
+      promise_dir = os.path.join(self.base_dir, 'promise')
+      for filename in os.listdir(promise_dir):
+        promise_dict = dict(
+          promise_pid=os.path.join(self.base_dir, 'run', '%s.pid' % filename),
+          promise_output=os.path.join(self.base_dir, 'public', '%s.status.json' % filename),
+          promise_executable=os.path.join(promise_dir, filename),
+          promise_name=filename
+        )
+        promise_dict.update(self.monitor_config_dict)
+        entry_line = promise_entry % promise_dict
+        self.assertTrue(entry_line in promise_command_list)
 
   def check_report(self):
     promise_entry = '* * * * * %(promise_run_script)s --pid_path "%(promise_pid)s" --output "%(promise_output)s" --promise_script "%(promise_executable)s" --promise_name "%(promise_name)s" --monitor_url "%(base_url)s/share/jio_private/" --history_folder "%(data_dir)s" --instance_name "%(title)s" --hosting_name "%(root_title)s" --promise_type "report"'
