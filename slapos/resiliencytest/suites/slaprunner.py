@@ -193,11 +193,11 @@ class SlaprunnerTestSuite(ResiliencyTestSuite):
       while self._connectToSlaprunner('getProjectStatus', data='project=workspace/slapos').find('On branch master') is -1:
         self.logger.info('git-cloning ongoing, sleeping...')
 
-  def _openSoftwareRelease(self):
+  def _openSoftwareRelease(self, software_release='slaprunner/test/dummy'):
     self.logger.debug('Opening dummy software release...')
     self._connectToSlaprunner(
         resource='setCurrentProject',
-        data='path=workspace/slapos/software/slaprunner/test/dummy/'
+        data='path=workspace/slapos/software/%s/' % software_release
     )
 
   def generateData(self):
