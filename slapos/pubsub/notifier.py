@@ -48,6 +48,9 @@ def main():
   parser.add_argument('--transaction-id', nargs=1, dest='transaction_id',
                       type=int, required=False,
                       help="Additional parameter for notification-url")
+  parser.add_argument('--max-run', dest='max_run',
+                      type=int, default=1, required=False,
+                      help="Run executable until it ends correctly, in a limit of max-run times")
 
   # Verbose mode
   parser.add_argument('--instance-root-name', dest='instance_root_name',
@@ -74,28 +77,35 @@ def main():
 
   saveStatus('STARTED')
 
-  try:
-    content = subprocess.check_output(
-        args.executable[0],
-        stderr=subprocess.STDOUT
-    )
-    exit_code = 0
-    content = ("OK</br><p>%s ran successfully</p>"
-                  "<p>Output is: </p><pre>%s</pre>" % (
+  if args.max_run <= 0:
+    print "--max-run argument takes a strictely positive number as argument"
+    sys.exit(-1)
+
+  while args.max_run > 0:
+    try:
+      content = subprocess.check_output(
           args.executable[0],
-          content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-      ))
-    saveStatus('FINISHED')
-  except subprocess.CalledProcessError as e:
-    saveStatus('ERROR')
-    content = e.output
-    exit_code = e.returncode
-    content = ("FAILURE</br><p>%s Failed with returncode <em>%d</em>.</p>"
-                  "<p>Output is: </p><pre>%s</pre>" % (
-          args.executable[0],
-          exit_code,
-          content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-      ))
+          stderr=subprocess.STDOUT
+      )
+      exit_code = 0
+      content = ("OK</br><p>%s ran successfully</p>"
+                    "<p>Output is: </p><pre>%s</pre>" % (
+            args.executable[0],
+            content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        ))
+      saveStatus('FINISHED')
+      break
+    except subprocess.CalledProcessError as e:
+      args.max_run -= 1
+      saveStatus('ERROR')
+      content = e.output
+      exit_code = e.returncode
+      content = ("FAILURE</br><p>%s Failed with returncode <em>%d</em>.</p>"
+                    "<p>Output is: </p><pre>%s</pre>" % (
+            args.executable[0],
+            exit_code,
+            content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        ))
 
   print content
 
