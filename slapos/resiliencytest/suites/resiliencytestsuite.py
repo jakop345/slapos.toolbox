@@ -136,14 +136,14 @@ class ResiliencyTestSuite(object):
     ).getConnectionParameterDict()
     self.deleteTimestamp()
 
-  def _returnNewInstanceParameter(self, parameter_key, old_parameter_value):
+  def _returnNewInstanceParameter(self, parameter_key, old_parameter_value, force_new=False):
     """
     Helper, can be used inside of checkDataOnCloneInstance.
     Wait for the new parameter (of old-clone new-main instance) to appear.
     Check than it is different from the old parameter
     """
     # if we are inside of a classical erp5testnode: just return the same parameter.
-    if self.test_type == UNIT_TEST_ERP5TESTNODE:
+    if self.test_type == UNIT_TEST_ERP5TESTNODE and not force_new:
       return old_parameter_value
 
     self.logger.info('Waiting for new main instance to be ready...')
