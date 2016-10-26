@@ -1,3 +1,9 @@
+0.61 (2016-10-26)
+=================
+
+* monitor: allow to specify a second promise folder 
+* pubhubsub: new argument allowing to run the executable several times in case of failure 
+
 0.60 (2016-10-05)
 =================
 
